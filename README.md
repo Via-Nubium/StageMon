@@ -30,7 +30,7 @@ _Coming soon_
 ## Getting started
 
 ```bash
-git clone https://github.com/SantiBrc/stagemon.git
+git clone https://github.com/Via-Nubium/StageMon.git
 cd stagemon
 flutter pub get
 flutter run
