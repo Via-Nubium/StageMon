@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1A3A5C"/>
+      <stop offset="100%" stop-color="#0D2040"/>
+    </linearGradient>
+    <radialGradient id="centerGlow" cx="50%" cy="45%" r="55%">
+      <stop offset="0%" stop-color="#1A4A8A" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#070D18" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="trackGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0A1828"/>
+      <stop offset="100%" stop-color="#050C16"/>
+    </linearGradient>
+    <linearGradient id="knobGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#64B5F6"/>
+      <stop offset="100%" stop-color="#1565C0"/>
+    </linearGradient>
+    <linearGradient id="knobGrad2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#42A5F5"/>
+      <stop offset="100%" stop-color="#0D47A1"/>
+    </linearGradient>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="108" fill="url(#bgGrad)"/>
+  <rect width="512" height="512" rx="108" fill="url(#centerGlow)"/>
+
+  <!-- ── Fader 1 (left, knob HIGH) — center x=133 ───────── -->
+  <!-- Track: x=125 w=16 -->
+  <rect x="125" y="76" width="16" height="276" rx="8" fill="url(#trackGrad)"/>
+  <!-- Tick marks -->
+  <rect x="120" y="130" width="26" height="2" rx="1" fill="#2979FF" opacity="0.4"/>
+  <rect x="120" y="196" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
+  <rect x="120" y="262" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
+  <rect x="120" y="328" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
+  <!-- Knob: x=98 w=70 h=44 -->
+  <rect x="98" y="111" width="70" height="44" rx="10" fill="url(#knobGrad)" filter="url(#softGlow)"/>
+  <rect x="98" y="111" width="70" height="44" rx="10" fill="none" stroke="#5BB8FF" stroke-width="1.5" stroke-opacity="0.5"/>
+  <rect x="108" y="131" width="50" height="3" rx="1.5" fill="white" opacity="0.4"/>
+
+  <!-- ── Fader 2 (center, knob LOW) — center x=256 ────── -->
+  <!-- Track: x=248 w=16 -->
+  <rect x="248" y="76" width="16" height="276" rx="8" fill="url(#trackGrad)"/>
+  <rect x="243" y="130" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
+  <rect x="243" y="196" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
+  <rect x="243" y="262" width="26" height="2" rx="1" fill="#2979FF" opacity="0.4"/>
+  <rect x="243" y="328" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
+  <!-- Knob: x=221 w=70 h=44 -->
+  <rect x="221" y="246" width="70" height="44" rx="10" fill="url(#knobGrad2)" filter="url(#softGlow)"/>
+  <rect x="221" y="246" width="70" height="44" rx="10" fill="none" stroke="#5BB8FF" stroke-width="1.5" stroke-opacity="0.5"/>
+  <rect x="231" y="266" width="50" height="3" rx="1.5" fill="white" opacity="0.4"/>
+
+  <!-- ── Fader 3 (right, knob MID) — center x=379 ────── -->
+  <!-- Track: x=371 w=16 -->
+  <rect x="371" y="76" width="16" height="276" rx="8" fill="url(#trackGrad)"/>
+  <rect x="366" y="130" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
+  <rect x="366" y="196" width="26" height="2" rx="1" fill="#2979FF" opacity="0.4"/>
+  <rect x="366" y="262" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
+  <rect x="366" y="328" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
+  <!-- Knob: x=344 w=70 h=44 -->
+  <rect x="344" y="181" width="70" height="44" rx="10" fill="url(#knobGrad)" filter="url(#softGlow)"/>
+  <rect x="344" y="181" width="70" height="44" rx="10" fill="none" stroke="#5BB8FF" stroke-width="1.5" stroke-opacity="0.5"/>
+  <rect x="354" y="201" width="50" height="3" rx="1.5" fill="white" opacity="0.4"/>
+
+  <!-- Bottom label "StgMn" -->
+  <text x="256" y="456" text-anchor="middle"
+        font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-weight="700" font-size="100" letter-spacing="12"
+        fill="#5BB8FF" opacity="1">StgMn</text>
+</svg>

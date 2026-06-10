@@ -1,0 +1,279 @@
+{
+  "@@locale": "es",
+
+  "invalidIp": "Dirección IP inválida",
+  "@invalidIp": {},
+
+  "socketError": "Error al abrir socket: {error}",
+  "@socketError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+
+  "orEnterIpManually": "o ingresa IP manualmente",
+  "@orEnterIpManually": {},
+
+  "mixerIpLabel": "IP de la Consola",
+  "@mixerIpLabel": {},
+
+  "mixerIpHint": "ej: 192.168.1.100",
+  "@mixerIpHint": {},
+
+  "search": "Buscar",
+  "@search": {},
+
+  "connect": "Conectar",
+  "@connect": {},
+
+  "searching": "Buscando consolas...",
+  "@searching": {},
+
+  "noMixerFound": "No se encontró ninguna consola",
+  "@noMixerFound": {},
+
+  "mixersFound": "Consolas encontradas",
+  "@mixersFound": {},
+
+  "settings": "Configuración",
+  "@settings": {},
+
+  "auxBus": "Bus auxiliar",
+  "@auxBus": {},
+
+  "visibleChannels": "Canales visibles",
+  "@visibleChannels": {},
+
+  "groupFaders": "Faders de grupo",
+  "@groupFaders": {},
+
+  "noChannelsAssigned": "Sin canales asignados",
+  "@noChannelsAssigned": {},
+
+  "channelCount": "{count, plural, =1{1 canal} other{{count} canales}}",
+  "@channelCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+
+  "configureChannels": "Configurar canales",
+  "@configureChannels": {},
+
+  "auxOutput": "Salida AUX",
+  "@auxOutput": {},
+
+  "auxFaderLabel": "AUX {bus}",
+  "@auxFaderLabel": {
+    "placeholders": {
+      "bus": {"type": "int"}
+    }
+  },
+
+  "auxOutputVolume": "Volumen de la salida AUX seleccionada",
+  "@auxOutputVolume": {},
+
+  "disconnect": "Desconectarse",
+  "@disconnect": {},
+
+  "disconnectConfirm": "¿Querés volver a la pantalla de conexión?",
+  "@disconnectConfirm": {},
+
+  "cancel": "Cancelar",
+  "@cancel": {},
+
+  "settingsTooltip": "Configuración",
+  "@settingsTooltip": {},
+
+  "snapshotsTitle": "Snapshots",
+  "@snapshotsTitle": {},
+
+  "saveCurrentState": "Guardar actual",
+  "@saveCurrentState": {},
+
+  "snapshotDefaultName": "Snapshot {n}",
+  "@snapshotDefaultName": {
+    "placeholders": {
+      "n": {"type": "int"}
+    }
+  },
+
+  "noSnapshotsSaved": "No hay snapshots guardados",
+  "@noSnapshotsSaved": {},
+
+  "snapshotNoData": "Sin datos — no había consola conectada",
+  "@snapshotNoData": {},
+
+  "snapshotWithPan": "{count} canales + pan (stereo)",
+  "@snapshotWithPan": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+
+  "snapshotChannels": "{count} canales guardados",
+  "@snapshotChannels": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+
+  "restoreTooltip": "Restaurar (solo canales activos)",
+  "@restoreTooltip": {},
+
+  "saveSnapshot": "Guardar estado actual",
+  "@saveSnapshot": {},
+
+  "overwriteSnapshotConfirm": "¿Reemplazar \"{name}\" con el estado actual de los faders?",
+  "@overwriteSnapshotConfirm": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+
+  "save": "Guardar",
+  "@save": {},
+
+  "rename": "Renombrar",
+  "@rename": {},
+
+  "delete": "Eliminar",
+  "@delete": {},
+
+  "noConnection": "Sin conexión con la consola",
+  "@noConnection": {},
+
+  "snapshotNameTitle": "Nombre del snapshot",
+  "@snapshotNameTitle": {},
+
+  "appTitle": "StageMon — {busTitle}",
+  "@appTitle": {
+    "placeholders": {
+      "busTitle": {"type": "String"}
+    }
+  },
+
+  "busTitleStereo": "Bus {odd}/{even} ST",
+  "@busTitleStereo": {
+    "placeholders": {
+      "odd": {"type": "int"},
+      "even": {"type": "int"}
+    }
+  },
+
+  "busTitleMono": "Bus {bus}",
+  "@busTitleMono": {
+    "placeholders": {
+      "bus": {"type": "int"}
+    }
+  },
+
+  "auxFaderChannelLabel": "AUX {busTitle}",
+  "@auxFaderChannelLabel": {
+    "placeholders": {
+      "busTitle": {"type": "String"}
+    }
+  },
+
+  "configureGroup": "Configurar {name}",
+  "@configureGroup": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+
+  "channelAlreadyAssigned": "Canal ya asignado",
+  "@channelAlreadyAssigned": {},
+
+  "reassignConfirm": "\"{label}\" ya pertenece a \"{other}\". ¿Querés reasignarlo a \"{current}\"?",
+  "@reassignConfirm": {
+    "placeholders": {
+      "label": {"type": "String"},
+      "other": {"type": "String"},
+      "current": {"type": "String"}
+    }
+  },
+
+  "reassign": "Reasignar",
+  "@reassign": {},
+
+  "renameGroup": "Renombrar grupo",
+  "@renameGroup": {},
+
+  "groupChannels": "Canales del grupo",
+  "@groupChannels": {},
+
+  "orangeChannelsNote": "Las entradas en naranja ya pertenecen a otro grupo.",
+  "@orangeChannelsNote": {},
+
+  "orangeInputsNote": "Las entradas en naranja ya pertenecen a otro grupo.",
+  "@orangeInputsNote": {},
+
+  "lineIn": "Line In",
+  "@lineIn": {},
+
+  "groupNameTitle": "Nombre del grupo",
+  "@groupNameTitle": {},
+
+  "inGroup": "En {name}",
+  "@inGroup": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+
+  "groupTitle": "Grupo: {name}",
+  "@groupTitle": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+
+  "editGroupChannels": "Editar canales del grupo",
+  "@editGroupChannels": {},
+
+  "noChannelsInGroup": "Este grupo no tiene entradas asignadas.",
+  "@noChannelsInGroup": {},
+
+  "about": "Acerca de",
+  "@about": {},
+
+  "developer": "Desarrollador",
+  "@developer": {},
+
+  "privacyPolicy": "Política de privacidad",
+  "@privacyPolicy": {},
+
+  "version": "Versión",
+  "@version": {},
+
+  "fxReturns": "FX Returns",
+  "@fxReturns": {},
+
+  "auxBusMuted": "Bus {busTitle} muteado",
+  "@auxBusMuted": {
+    "placeholders": {
+      "busTitle": {"type": "String"}
+    }
+  },
+
+  "muteMuting": "Muteando {label}",
+  "@muteMuting": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+
+  "muteUnmuting": "Desmuteando {label}",
+  "@muteUnmuting": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+
+  "openSourceLicenses": "Licencias de código abierto",
+  "@openSourceLicenses": {},
+
+  "disclaimer": "Esta aplicación se provee \"tal cual\", sin garantía de ningún tipo. Usala bajo tu propia responsabilidad.",
+  "@disclaimer": {}
+}
