@@ -279,8 +279,7 @@ class _MixerScreenState extends State<MixerScreen> {
                     child: Text(l.noSnapshotsSaved),
                   )
                 else
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 300),
+                  Flexible(
                     child: ListView.separated(
                       shrinkWrap: true,
                       itemCount: _snapshots.snapshots.length,
