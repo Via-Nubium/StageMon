@@ -20,7 +20,7 @@
       <stop offset="0%" stop-color="#42A5F5"/>
       <stop offset="100%" stop-color="#0D47A1"/>
     </linearGradient>
-    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+<filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
       <feGaussianBlur stdDeviation="8" result="blur"/>
       <feMerge>
         <feMergeNode in="blur"/>
@@ -33,46 +33,44 @@
   <rect width="512" height="512" rx="108" fill="url(#bgGrad)"/>
   <rect width="512" height="512" rx="108" fill="url(#centerGlow)"/>
 
+  <g transform="translate(256,256) scale(1.12) translate(-256,-256)">
+
   <!-- ── Fader 1 (left, knob HIGH) — center x=133 ───────── -->
   <!-- Track: x=125 w=16 -->
-  <rect x="125" y="76" width="16" height="276" rx="8" fill="url(#trackGrad)"/>
+  <rect x="125" y="118" width="16" height="276" rx="8" fill="url(#trackGrad)"/>
   <!-- Tick marks -->
-  <rect x="120" y="130" width="26" height="2" rx="1" fill="#2979FF" opacity="0.4"/>
-  <rect x="120" y="196" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
-  <rect x="120" y="262" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
-  <rect x="120" y="328" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
+  <rect x="120" y="172" width="26" height="2" rx="1" fill="#2979FF" opacity="0.4"/>
+  <rect x="120" y="238" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
+  <rect x="120" y="304" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
+  <rect x="120" y="370" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
   <!-- Knob: x=98 w=70 h=44 -->
-  <rect x="98" y="111" width="70" height="44" rx="10" fill="url(#knobGrad)" filter="url(#softGlow)"/>
-  <rect x="98" y="111" width="70" height="44" rx="10" fill="none" stroke="#5BB8FF" stroke-width="1.5" stroke-opacity="0.5"/>
-  <rect x="108" y="131" width="50" height="3" rx="1.5" fill="white" opacity="0.4"/>
+  <rect x="98" y="153" width="70" height="44" rx="10" fill="url(#knobGrad)" filter="url(#softGlow)"/>
+  <rect x="98" y="153" width="70" height="44" rx="10" fill="none" stroke="#5BB8FF" stroke-width="1.5" stroke-opacity="0.5"/>
+  <rect x="108" y="173" width="50" height="3" rx="1.5" fill="white" opacity="0.4"/>
 
   <!-- ── Fader 2 (center, knob LOW) — center x=256 ────── -->
   <!-- Track: x=248 w=16 -->
-  <rect x="248" y="76" width="16" height="276" rx="8" fill="url(#trackGrad)"/>
-  <rect x="243" y="130" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
-  <rect x="243" y="196" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
-  <rect x="243" y="262" width="26" height="2" rx="1" fill="#2979FF" opacity="0.4"/>
-  <rect x="243" y="328" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
+  <rect x="248" y="118" width="16" height="276" rx="8" fill="url(#trackGrad)"/>
+  <rect x="243" y="172" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
+  <rect x="243" y="238" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
+  <rect x="243" y="304" width="26" height="2" rx="1" fill="#2979FF" opacity="0.4"/>
+  <rect x="243" y="370" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
   <!-- Knob: x=221 w=70 h=44 -->
-  <rect x="221" y="246" width="70" height="44" rx="10" fill="url(#knobGrad2)" filter="url(#softGlow)"/>
-  <rect x="221" y="246" width="70" height="44" rx="10" fill="none" stroke="#5BB8FF" stroke-width="1.5" stroke-opacity="0.5"/>
-  <rect x="231" y="266" width="50" height="3" rx="1.5" fill="white" opacity="0.4"/>
+  <rect x="221" y="288" width="70" height="44" rx="10" fill="url(#knobGrad2)" filter="url(#softGlow)"/>
+  <rect x="221" y="288" width="70" height="44" rx="10" fill="none" stroke="#5BB8FF" stroke-width="1.5" stroke-opacity="0.5"/>
+  <rect x="231" y="308" width="50" height="3" rx="1.5" fill="white" opacity="0.4"/>
 
   <!-- ── Fader 3 (right, knob MID) — center x=379 ────── -->
   <!-- Track: x=371 w=16 -->
-  <rect x="371" y="76" width="16" height="276" rx="8" fill="url(#trackGrad)"/>
-  <rect x="366" y="130" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
-  <rect x="366" y="196" width="26" height="2" rx="1" fill="#2979FF" opacity="0.4"/>
-  <rect x="366" y="262" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
-  <rect x="366" y="328" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
+  <rect x="371" y="118" width="16" height="276" rx="8" fill="url(#trackGrad)"/>
+  <rect x="366" y="172" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
+  <rect x="366" y="238" width="26" height="2" rx="1" fill="#2979FF" opacity="0.4"/>
+  <rect x="366" y="304" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
+  <rect x="366" y="370" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
   <!-- Knob: x=344 w=70 h=44 -->
-  <rect x="344" y="181" width="70" height="44" rx="10" fill="url(#knobGrad)" filter="url(#softGlow)"/>
-  <rect x="344" y="181" width="70" height="44" rx="10" fill="none" stroke="#5BB8FF" stroke-width="1.5" stroke-opacity="0.5"/>
-  <rect x="354" y="201" width="50" height="3" rx="1.5" fill="white" opacity="0.4"/>
+  <rect x="344" y="223" width="70" height="44" rx="10" fill="url(#knobGrad)" filter="url(#softGlow)"/>
+  <rect x="344" y="223" width="70" height="44" rx="10" fill="none" stroke="#5BB8FF" stroke-width="1.5" stroke-opacity="0.5"/>
+  <rect x="354" y="243" width="50" height="3" rx="1.5" fill="white" opacity="0.4"/>
 
-  <!-- Bottom label "StgMn" -->
-  <text x="256" y="456" text-anchor="middle"
-        font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
-        font-weight="700" font-size="100" letter-spacing="12"
-        fill="#5BB8FF" opacity="1">StgMn</text>
+  </g>
 </svg>
