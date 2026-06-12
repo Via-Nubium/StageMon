@@ -572,7 +572,10 @@ class _MixerScreenState extends State<MixerScreen> {
                                     height: kPanKnobHeight,
                                     child: Center(
                                       child: IconButton(
-                                        icon: const Icon(Icons.tune, size: 30),
+                                        icon: Transform.rotate(
+                                          angle: -1.5708,
+                                          child: const Icon(Icons.tune, size: 30),
+                                        ),
                                         color: const Color(0xFF00C853).withValues(alpha: 0.7),
                                         tooltip: l.configureGroup(e.value.name),
                                         onPressed: () => _openGroupDetail(e.key),
