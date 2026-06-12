@@ -2,74 +2,271 @@
   "@@locale": "en",
 
   "invalidIp": "Invalid IP address",
+  "@invalidIp": {},
+
   "socketError": "Error opening socket: {error}",
+  "@socketError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+
   "orEnterIpManually": "or enter IP manually",
+  "@orEnterIpManually": {},
+
   "mixerIpLabel": "Mixer IP",
+  "@mixerIpLabel": {},
+
   "mixerIpHint": "e.g. 192.168.1.100",
+  "@mixerIpHint": {},
+
   "search": "Search",
+  "@search": {},
+
   "connect": "Connect",
+  "@connect": {},
+
   "searching": "Searching for mixers...",
+  "@searching": {},
+
   "noMixerFound": "No mixers found",
+  "@noMixerFound": {},
+
   "mixersFound": "Mixers found",
+  "@mixersFound": {},
+
   "settings": "Settings",
+  "@settings": {},
+
   "auxBus": "Aux send",
+  "@auxBus": {},
+
   "visibleChannels": "Visible channels",
+  "@visibleChannels": {},
+
   "groupFaders": "Group faders",
+  "@groupFaders": {},
+
   "noChannelsAssigned": "No channels assigned",
+  "@noChannelsAssigned": {},
+
   "channelCount": "{count, plural, =1{1 channel} other{{count} channels}}",
+  "@channelCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+
   "configureChannels": "Configure channels",
+  "@configureChannels": {},
+
   "auxOutput": "Aux output",
+  "@auxOutput": {},
+
   "auxFaderLabel": "Aux {bus}",
+  "@auxFaderLabel": {
+    "placeholders": {
+      "bus": {"type": "int"}
+    }
+  },
+
   "auxOutputVolume": "Volume of the selected aux send",
+  "@auxOutputVolume": {},
+
   "disconnect": "Disconnect",
+  "@disconnect": {},
+
   "disconnectConfirm": "Go back to the connection screen?",
+  "@disconnectConfirm": {},
+
   "cancel": "Cancel",
+  "@cancel": {},
+
   "settingsTooltip": "Settings",
+  "@settingsTooltip": {},
+
   "snapshotsTitle": "Snapshots",
+  "@snapshotsTitle": {},
+
   "saveCurrentState": "Save current",
+  "@saveCurrentState": {},
+
   "snapshotDefaultName": "Snapshot {n}",
+  "@snapshotDefaultName": {
+    "placeholders": {
+      "n": {"type": "int"}
+    }
+  },
+
   "noSnapshotsSaved": "No snapshots saved",
+  "@noSnapshotsSaved": {},
+
   "snapshotNoData": "No data — mixer was not connected",
+  "@snapshotNoData": {},
+
   "snapshotWithPan": "{count} channels + pan (stereo)",
+  "@snapshotWithPan": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+
   "snapshotChannels": "{count} channels saved",
+  "@snapshotChannels": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+
   "restoreTooltip": "Restore (active channels only)",
+  "@restoreTooltip": {},
+
   "saveSnapshot": "Save current state",
+  "@saveSnapshot": {},
+
   "overwriteSnapshotConfirm": "Replace \"{name}\" with current fader state?",
+  "@overwriteSnapshotConfirm": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+
   "save": "Save",
+  "@save": {},
+
   "rename": "Rename",
+  "@rename": {},
+
   "delete": "Delete",
+  "@delete": {},
+
   "noConnection": "No connection to mixer",
+  "@noConnection": {},
+
   "snapshotNameTitle": "Snapshot name",
-  "appTitle": "StageMon — {busTitle}",
+  "@snapshotNameTitle": {},
+
   "busTitleStereo": "Bus {odd}/{even} ST",
+  "@busTitleStereo": {
+    "placeholders": {
+      "odd": {"type": "int"},
+      "even": {"type": "int"}
+    }
+  },
+
   "busTitleMono": "Bus {bus}",
+  "@busTitleMono": {
+    "placeholders": {
+      "bus": {"type": "int"}
+    }
+  },
+
   "auxFaderChannelLabel": "AUX {busTitle}",
+  "@auxFaderChannelLabel": {
+    "placeholders": {
+      "busTitle": {"type": "String"}
+    }
+  },
+
   "configureGroup": "Configure {name}",
+  "@configureGroup": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+
   "channelAlreadyAssigned": "Channel already assigned",
+  "@channelAlreadyAssigned": {},
+
   "reassignConfirm": "\"{label}\" belongs to \"{other}\". Reassign to \"{current}\"?",
+  "@reassignConfirm": {
+    "placeholders": {
+      "label": {"type": "String"},
+      "other": {"type": "String"},
+      "current": {"type": "String"}
+    }
+  },
+
   "reassign": "Reassign",
+  "@reassign": {},
+
   "renameGroup": "Rename group",
+  "@renameGroup": {},
+
   "groupChannels": "Group channels",
+  "@groupChannels": {},
+
   "orangeChannelsNote": "Orange inputs already belong to another group.",
+  "@orangeChannelsNote": {},
+
   "orangeInputsNote": "Orange inputs already belong to another group.",
+  "@orangeInputsNote": {},
+
   "lineIn": "Line In",
+  "@lineIn": {},
+
   "groupNameTitle": "Group name",
+  "@groupNameTitle": {},
+
   "inGroup": "In {name}",
+  "@inGroup": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+
   "groupTitle": "Group: {name}",
+  "@groupTitle": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+
   "editGroupChannels": "Edit group channels",
+  "@editGroupChannels": {},
+
   "noChannelsInGroup": "This group has no inputs assigned.",
+  "@noChannelsInGroup": {},
 
   "about": "About",
+  "@about": {},
+
   "developer": "Developer",
+  "@developer": {},
+
   "privacyPolicy": "Privacy policy",
+  "@privacyPolicy": {},
+
   "version": "Version",
+  "@version": {},
+
   "fxReturns": "FX Returns",
+  "@fxReturns": {},
 
   "auxBusMuted": "Bus {busTitle} is muted",
+  "@auxBusMuted": {
+    "placeholders": {
+      "busTitle": {"type": "String"}
+    }
+  },
 
   "muteMuting": "Muting {label}",
+  "@muteMuting": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+
   "muteUnmuting": "Unmuting {label}",
+  "@muteUnmuting": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
 
   "openSourceLicenses": "Open source licenses",
-  "disclaimer": "This app is provided \"as is\", without warranty of any kind. Use at your own risk."
+  "@openSourceLicenses": {},
+
+  "disclaimer": "This app is provided \"as is\", without warranty of any kind. Use at your own risk.",
+  "@disclaimer": {}
 }

@@ -418,7 +418,7 @@ class _MixerScreenState extends State<MixerScreen> {
           },
           child: Scaffold(
             appBar: AppBar(
-              title: Text(l.appTitle(busTitle)),
+              title: Text(busTitle),
               automaticallyImplyLeading: false,
               leading: IconButton(
                 icon: const Icon(Icons.settings),
