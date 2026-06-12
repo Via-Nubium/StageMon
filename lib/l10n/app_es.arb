@@ -42,7 +42,6 @@
   "snapshotNameTitle": "Nombre del snapshot",
   "busTitleStereo": "Bus {odd}/{even} ST",
   "busTitleMono": "Bus {bus}",
-  "auxFaderChannelLabel": "AUX {busTitle}",
   "configureGroup": "Configurar {name}",
   "channelAlreadyAssigned": "Canal ya asignado",
   "reassignConfirm": "\"{label}\" ya pertenece a \"{other}\". ¿Querés reasignarlo a \"{current}\"?",

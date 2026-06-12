@@ -602,7 +602,7 @@ class _MixerScreenState extends State<MixerScreen> {
                                 Expanded(
                                   child: CustomFader(
                                     key: const ValueKey('aux'),
-                                    label: l.auxFaderChannelLabel(busTitle),
+                                    label: 'Master',
                                     oscAddress: _ctrl.auxAddress(),
                                     service: widget.service,
                                     accentColor: Colors.amber,
@@ -614,7 +614,7 @@ class _MixerScreenState extends State<MixerScreen> {
                                 MuteButton(
                                   key: const ValueKey('mute_aux'),
                                   isMuted: _ctrl.auxMuted == true,
-                                  label: l.auxFaderChannelLabel(busTitle),
+                                  label: 'Master',
                                   onToggle: _ctrl.setAuxMuted,
                                 ),
                               ],

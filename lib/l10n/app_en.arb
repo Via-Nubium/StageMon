@@ -161,13 +161,6 @@
     }
   },
 
-  "auxFaderChannelLabel": "AUX {busTitle}",
-  "@auxFaderChannelLabel": {
-    "placeholders": {
-      "busTitle": {"type": "String"}
-    }
-  },
-
   "configureGroup": "Configure {name}",
   "@configureGroup": {
     "placeholders": {
