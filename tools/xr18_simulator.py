@@ -27,9 +27,8 @@ import argparse
 from typing import Any, Dict, List, Tuple
 
 PORT = 10024
-DEVICE_NAME = "XR18-00-1A-79-SIM"
 FIRMWARE = "1.18-sim"
-MODEL = "XR18"
+DEFAULT_MODEL = "XR18"
 XREMOTE_TTL = 10.0   # seconds before /xremote registration expires
 METER_TTL   = 15.0   # seconds before /meters subscription expires
 METER_INTERVAL = 0.1 # seconds between /meters/1 pushes (~10 Hz)
@@ -119,13 +118,15 @@ def osc_parse(data: bytes) -> Tuple[str, List[Any]]:
 # ── Simulator ─────────────────────────────────────────────────────────────────
 
 class XR18Simulator:
-    def __init__(self, port: int = PORT):
+    def __init__(self, port: int = PORT, model: str = DEFAULT_MODEL):
         self._port = port
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         self._sock.bind(('', port))
         self._sock.settimeout(1.0)
+        self._model = model
+        self._device_name = f'{model}-00-1A-79-SIM'
 
         self._state: Dict[str, Any] = {}
         self._state_lock = threading.Lock()
@@ -209,7 +210,7 @@ class XR18Simulator:
 
         if address == '/xinfo':
             ip = self._local_ip()
-            self._send(sender, osc_build('/xinfo', ip, DEVICE_NAME, MODEL, FIRMWARE))
+            self._send(sender, osc_build('/xinfo', ip, self._device_name, self._model, FIRMWARE))
             self._log(f'[DISC] /xinfo from {sender[0]} → replied ({ip})')
             return
 
@@ -332,7 +333,7 @@ class XR18Simulator:
         self._running = True
         ip = self._local_ip()
         print(f'XR18 Simulator — {ip}:{self._port}')
-        print(f'Name: {DEVICE_NAME}  |  Model: {MODEL}')
+        print(f'Name: {self._device_name}  |  Model: {self._model}')
         print()
         print('Commands: state [bus] | set <addr> <val> | link <1-3> <0/1> | name <ch> <name> | meters [on|off] | clients | q')
         print()
@@ -543,5 +544,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Behringer XR18 OSC Simulator')
     parser.add_argument('--port', type=int, default=PORT,
                         help=f'UDP port to listen on (default: {PORT})')
+    parser.add_argument('--model', type=str, default=DEFAULT_MODEL,
+                        help=f'Model name reported in /xinfo (default: {DEFAULT_MODEL})')
     args = parser.parse_args()
-    XR18Simulator(port=args.port).run()
+    XR18Simulator(port=args.port, model=args.model).run()

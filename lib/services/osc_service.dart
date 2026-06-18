@@ -30,6 +30,12 @@ class OscService {
   OscService({required this.ip, this.port = 10024});
 
   // Broadcasts /xinfo and collects all XR18/X18 responses until timeout.
+  static ConsoleInfo _parseXinfo(String ip, List<dynamic> args) {
+    final name = args.length > 1 ? args[1].toString() : ip;
+    final model = args.length > 2 ? args[2].toString() : 'Unknown';
+    return ConsoleInfo(ip: ip, name: name, model: model);
+  }
+
   static Future<List<ConsoleInfo>> findAllConsoles({
     Duration timeout = const Duration(seconds: 3),
   }) async {
@@ -46,11 +52,7 @@ class OscService {
         if (reply.address == '/xinfo') {
           final ip = dg.address.address;
           if (consoles.any((c) => c.ip == ip)) return;
-          final args = reply.arguments;
-          // XR18 /xinfo response args: [IP, name, model, firmware]
-          final name = args.length > 1 ? args[1].toString() : ip;
-          final model = args.length > 2 ? args[2].toString() : 'XR18';
-          consoles.add(ConsoleInfo(ip: ip, name: name, model: model));
+          consoles.add(_parseXinfo(ip, reply.arguments));
         }
       } catch (_) {}
     });
@@ -63,6 +65,35 @@ class OscService {
     await Future.delayed(timeout);
     socket.close();
     return List.unmodifiable(consoles);
+  }
+
+  static Future<ConsoleInfo?> queryConsole(String ip, {
+    Duration timeout = const Duration(seconds: 2),
+  }) async {
+    final socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
+    final completer = Completer<ConsoleInfo?>();
+
+    socket.listen((event) {
+      if (event != RawSocketEvent.read) return;
+      final dg = socket.receive();
+      if (dg == null) return;
+      try {
+        final reply = OSCMessage.fromBytes(dg.data);
+        if (reply.address == '/xinfo' && !completer.isCompleted) {
+          completer.complete(_parseXinfo(ip, reply.arguments));
+        }
+      } catch (_) {}
+    });
+
+    try {
+      final msg = OSCMessage('/xinfo', arguments: []);
+      socket.send(msg.toBytes(), InternetAddress(ip), 10024);
+    } catch (_) {}
+
+    final result = await completer.future
+        .timeout(timeout, onTimeout: () => null);
+    socket.close();
+    return result;
   }
 
   Future<void> init() async {

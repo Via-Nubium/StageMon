@@ -261,5 +261,34 @@
   "@openSourceLicenses": {},
 
   "disclaimer": "This app is provided \"as is\", without warranty of any kind. Use at your own risk.",
-  "@disclaimer": {}
+  "@disclaimer": {},
+
+  "untestedModelTitle": "Untested model",
+  "@untestedModelTitle": {},
+
+  "untestedModelBody": "This console ({model}) has not been tested with StageMon. It may work, but some features might behave unexpectedly.",
+  "@untestedModelBody": {
+    "placeholders": {
+      "model": {"type": "String"}
+    }
+  },
+
+  "connectAnyway": "Connect anyway",
+  "@connectAnyway": {},
+
+  "unknownModel": "Unknown model",
+  "@unknownModel": {},
+
+  "noConsoleAtIpTitle": "No response",
+  "@noConsoleAtIpTitle": {},
+
+  "noConsoleAtIpBody": "No console responded at {ip}. OSC commands will be sent anyway, but results may be unpredictable.",
+  "@noConsoleAtIpBody": {
+    "placeholders": {
+      "ip": {"type": "String"}
+    }
+  },
+
+  "tryAnyway": "Try anyway",
+  "@tryAnyway": {}
 }

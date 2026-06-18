@@ -65,5 +65,15 @@
   "muteMuting": "Muteando {label}",
   "muteUnmuting": "Desmuteando {label}",
   "openSourceLicenses": "Licencias de código abierto",
-  "disclaimer": "Esta aplicación se provee \"tal cual\", sin garantía de ningún tipo. Usala bajo tu propia responsabilidad."
+  "disclaimer": "Esta aplicación se provee \"tal cual\", sin garantía de ningún tipo. Usala bajo tu propia responsabilidad.",
+
+  "untestedModelTitle": "Modelo no probado",
+  "untestedModelBody": "Esta consola ({model}) no fue probada con StageMon. Puede funcionar, pero algunas características podrían comportarse de forma inesperada.",
+  "connectAnyway": "Conectar de todas formas",
+
+  "unknownModel": "Modelo desconocido",
+
+  "noConsoleAtIpTitle": "Sin respuesta",
+  "noConsoleAtIpBody": "No hubo respuesta en {ip}. Se enviarán los comandos OSC igual, pero los resultados pueden ser impredecibles.",
+  "tryAnyway": "Intentar igual"
 }

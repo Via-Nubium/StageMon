@@ -17,6 +17,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
   _DiscoveryStatus _status = _DiscoveryStatus.searching;
   List<ConsoleInfo> _consoles = [];
   final TextEditingController _ipController = TextEditingController();
+  bool _isConnecting = false;
 
   @override
   void initState() {
@@ -63,6 +64,81 @@ class _ConnectScreenState extends State<ConnectScreen> {
       final n = int.tryParse(p);
       return n != null && n >= 0 && n <= 255;
     });
+  }
+
+  static const _testedModels = {'XR18', 'X18'};
+
+  void _connectManual() async {
+    final l = AppLocalizations.of(context)!;
+    final ip = _ipController.text.trim();
+    if (ip.isEmpty) return;
+    if (!_isValidIp(ip)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l.invalidIp)),
+      );
+      return;
+    }
+
+    setState(() => _isConnecting = true);
+    ConsoleInfo? info;
+    try {
+      info = await OscService.queryConsole(ip);
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() => _isConnecting = false);
+
+    if (info != null) {
+      await _connectToConsole(info);
+      return;
+    }
+
+    if (info == null) {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(l.noConsoleAtIpTitle),
+          content: Text(l.noConsoleAtIpBody(ip)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l.cancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l.tryAnyway),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true) return;
+    }
+
+    _connect(ip);
+  }
+
+  Future<void> _connectToConsole(ConsoleInfo console) async {
+    if (!_testedModels.contains(console.model)) {
+      final l = AppLocalizations.of(context)!;
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(l.untestedModelTitle),
+          content: Text(l.untestedModelBody(console.model)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l.cancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l.connectAnyway),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true) return;
+    }
+    _connect(console.ip);
   }
 
   void _connect([String? overrideIp]) async {
@@ -158,7 +234,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: isSearching ? null : () => _connect(),
+                      onPressed: isSearching || _isConnecting ? null : _connectManual,
                       icon: const Icon(Icons.power_settings_new),
                       label: Text(l.connect),
                       style: ElevatedButton.styleFrom(
@@ -216,7 +292,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
             ..._consoles.map(
               (c) => _ConsoleCard(
                 console: c,
-                onTap: () => _connect(c.ip),
+                onTap: () => _connectToConsole(c),
               ),
             ),
           ],
@@ -238,7 +314,9 @@ class _ConsoleCard extends StatelessWidget {
       child: ListTile(
         leading: const Icon(Icons.speaker),
         title: Text(
-          console.model,
+          console.model == 'Unknown'
+              ? AppLocalizations.of(context)!.unknownModel
+              : console.model,
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Text(
