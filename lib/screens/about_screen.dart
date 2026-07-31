@@ -14,12 +14,18 @@ class AboutScreen extends StatefulWidget {
 
 class _AboutScreenState extends State<AboutScreen> {
   String _version = '';
+  String _buildNumber = '';
 
   @override
   void initState() {
     super.initState();
     PackageInfo.fromPlatform().then((info) {
-      if (mounted) setState(() => _version = info.version);
+      if (mounted) {
+        setState(() {
+          _version = info.version;
+          _buildNumber = info.buildNumber;
+        });
+      }
     });
   }
 
@@ -51,7 +57,7 @@ class _AboutScreenState extends State<AboutScreen> {
           if (_version.isNotEmpty)
             Center(
               child: Text(
-                '${l.version} $_version',
+                '${l.version} $_version ($_buildNumber)',
                 style: const TextStyle(fontSize: 13, color: Colors.white54),
               ),
             ),
