@@ -12,8 +12,14 @@ Interactive commands (type after the '> ' prompt):
     set <addr> <val>             Set any OSC address and push to connected app
     link <1|2|3> <0|1>          Toggle stereo bus pairing (1→1-2, 2→3-4, 3→5-6)
     name <ch> <name>             Set a channel name (ch = 1-16)
-    mute aux <bus> <0|1>           Set AUX bus on/off (/bus/{bus}/mix/on) (0=muted, 1=unmuted)
+    mute aux <bus> <0|1>         Set AUX bus on/off (/bus/{bus}/mix/on) (0=muted, 1=unmuted)
+    lr                           Show Main LR fader and mute state
+    lr fader <0.0-1.0>           Set Main LR fader level and push
+    lr mute <0|1>                Set Main LR mute (0=muted, 1=unmuted) and push
     meters [on|off]              Show/toggle VU meter simulation (sends /meters/1 at ~10 Hz)
+    snap                         List all snapshots
+    snap load <N>                Load snapshot N and push /-snap/index to connected app
+    snap name <N> <name>         Set snapshot name
     clients                      List registered /xremote clients
     q / quit                     Exit
 """
@@ -165,9 +171,25 @@ class XR18Simulator:
             for bus in range(1, 7):
                 self._state[f'/bus/{bus}/mix/fader'] = 0.75  # ~unity (0 dB)
                 self._state[f'/bus/{bus}/mix/on'] = 1         # unmuted
+            self._state['/lr/mix/fader'] = 0.75  # ~unity (0 dB)
+            self._state['/lr/mix/on'] = 1         # unmuted
             self._state['/config/buslink/1-2'] = 0
             self._state['/config/buslink/3-4'] = 0
             self._state['/config/buslink/5-6'] = 0
+
+            # Snapshots — 10 pre-populated slots for testing
+            _sample_names = [
+                'Soundcheck', 'Band Entrada', 'Artista Solo', 'Full Band',
+                'Acustico', 'Bateria Solo', 'Bajo Solo', 'Guitarra Lead',
+                'Piano Solo', 'Finales',
+            ]
+            for i, n in enumerate(_sample_names, 1):
+                self._state[f'/-snap/{str(i).zfill(2)}/name'] = n
+            # Current snapshot state (0 = none loaded)
+            self._state['/-snap/index'] = 0
+            self._state['/-snap/name'] = ''
+            self._state['/-snapstore/index'] = 0
+            self._state['/-snapstore/name'] = ''
 
     def _local_ip(self) -> str:
         try:
@@ -228,6 +250,10 @@ class XR18Simulator:
                 self._meter_subs[sender] = time.time() + METER_TTL
             return
 
+        if address == '/-snap/load' and args:
+            self._load_snapshot(int(args[0]), sender)
+            return
+
         if args:
             # SET — store and push to all xremote subscribers
             value = args[0]
@@ -242,6 +268,25 @@ class XR18Simulator:
             if value is not None:
                 self._send(sender, osc_build(address, value))
             # silently ignore unknown addresses (app may request addresses not in our model)
+
+    def _load_snapshot(self, idx: int, requester: Tuple[str, int]) -> None:
+        if not (1 <= idx <= 64):
+            return
+        with self._state_lock:
+            name = self._state.get(f'/-snap/{str(idx).zfill(2)}/name', f'Snapshot {idx}')
+            self._state['/-snap/index'] = idx
+            self._state['/-snap/name'] = name
+            self._state['/-snapstore/index'] = idx
+            self._state['/-snapstore/name'] = name
+        # Mirror what the real XR18 pushes to xremote subscribers on snapshot load.
+        self._push_to_xremote('/-snap/load', 0)
+        self._push_to_xremote('/-snapstore/name', name)
+        self._push_to_xremote('/-snap/name', name)
+        self._push_to_xremote('/-snap/index', idx)
+        self._push_to_xremote('/-snapstore/index', idx)
+        self._push_to_xremote('/-action/savestate', 0)
+        self._push_to_xremote('/-action/mididump', 0)
+        self._log(f'[SNAP] Loaded #{idx}: {name!r}  (requested by {requester[0]})')
 
     def _generate_meter_values(self, t: float) -> List[int]:
         """40 int16 values matching X AIR /meters/1 layout (all indices 0-based).
@@ -335,7 +380,7 @@ class XR18Simulator:
         print(f'XR18 Simulator — {ip}:{self._port}')
         print(f'Name: {self._device_name}  |  Model: {self._model}')
         print()
-        print('Commands: state [bus] | set <addr> <val> | link <1-3> <0/1> | name <ch> <name> | meters [on|off] | clients | q')
+        print('Commands: state [bus] | set <addr> <val> | link <1-3> <0/1> | name <ch> <name> | lr [fader x | mute x] | meters [on|off] | snap [load N | name N x] | clients | q')
         print()
 
         recv_thread = threading.Thread(target=self._recv_loop, daemon=True)
@@ -401,6 +446,10 @@ class XR18Simulator:
                 fx_muted = [str(rtn) for rtn, grpon in fx_rows if grpon == 0]
                 if fx_muted:
                     print(f'  FX returns muted: {", ".join(fx_muted)}')
+                with self._state_lock:
+                    lr_fader = self._state.get('/lr/mix/fader', 0.75)
+                    lr_on = self._state.get('/lr/mix/on', 1)
+                print(f'  Main LR: {lr_fader:.3f} {"[MUTE]" if lr_on == 0 else ""}')
                 print()
 
             elif cmd == 'set':
@@ -490,6 +539,46 @@ class XR18Simulator:
                 else:
                     print('  Usage: mute aux <bus 1-6> <0|1>  (0=muted, 1=unmuted)')
 
+            elif cmd == 'lr':
+                sub = parts[1].lower() if len(parts) > 1 else ''
+                if sub == 'fader':
+                    if len(parts) < 3:
+                        print('  Usage: lr fader <0.0-1.0>')
+                        continue
+                    try:
+                        val_f = float(parts[2])
+                    except ValueError:
+                        print('  Value must be a float 0.0-1.0')
+                        continue
+                    val_f = max(0.0, min(1.0, val_f))
+                    with self._state_lock:
+                        self._state['/lr/mix/fader'] = val_f
+                    self._push_to_xremote('/lr/mix/fader', val_f)
+                    print(f'  /lr/mix/fader = {val_f:.3f}  (pushed)')
+                elif sub == 'mute':
+                    if len(parts) < 3:
+                        print('  Usage: lr mute <0|1>  (0=muted, 1=unmuted)')
+                        continue
+                    try:
+                        val_i = int(parts[2])
+                    except ValueError:
+                        print('  Value must be 0 (muted) or 1 (unmuted)')
+                        continue
+                    if val_i not in (0, 1):
+                        print('  Value must be 0 (muted) or 1 (unmuted)')
+                        continue
+                    with self._state_lock:
+                        self._state['/lr/mix/on'] = val_i
+                    self._push_to_xremote('/lr/mix/on', val_i)
+                    status = 'MUTED' if val_i == 0 else 'unmuted'
+                    print(f'  /lr/mix/on = {val_i}  ({status}, pushed)')
+                else:
+                    with self._state_lock:
+                        lr_fader = self._state.get('/lr/mix/fader', 0.75)
+                        lr_on = self._state.get('/lr/mix/on', 1)
+                    mute_str = '  [MUTE]' if lr_on == 0 else ''
+                    print(f'  Main LR: fader={lr_fader:.3f}{mute_str}')
+
             elif cmd == 'meters':
                 arg = parts[1].lower() if len(parts) > 1 else ''
                 if arg == 'off':
@@ -509,6 +598,54 @@ class XR18Simulator:
                             print(f'    subscriber {cip}:{cport}  ttl={ttl:.1f}s')
                     else:
                         print('  No meter subscribers yet.')
+
+            elif cmd == 'snap':
+                sub = parts[1].lower() if len(parts) > 1 else ''
+                if sub == 'load':
+                    if len(parts) < 3:
+                        print('  Usage: snap load <1-64>')
+                        continue
+                    try:
+                        idx = int(parts[2])
+                    except ValueError:
+                        print('  N must be an integer')
+                        continue
+                    if not (1 <= idx <= 64):
+                        print('  N must be between 1 and 64')
+                        continue
+                    self._load_snapshot(idx, ('console', 0))
+                elif sub == 'name':
+                    rest = line.split(None, 3)
+                    if len(rest) < 4:
+                        print('  Usage: snap name <N> <name>')
+                        continue
+                    try:
+                        idx = int(rest[2])
+                    except ValueError:
+                        print('  N must be an integer')
+                        continue
+                    name = rest[3].strip('"\'')
+                    addr = f'/-snap/{str(idx).zfill(2)}/name'
+                    with self._state_lock:
+                        self._state[addr] = name
+                    print(f'  {addr} = {name!r}')
+                else:
+                    # List all snapshots
+                    with self._state_lock:
+                        current = self._state.get('/-snap/index', 0)
+                        rows = []
+                        for i in range(1, 65):
+                            n = self._state.get(f'/-snap/{str(i).zfill(2)}/name')
+                            if n:
+                                rows.append((i, n))
+                    print(f'\n  {"#":<5} {"Name":<30}')
+                    print(f'  {"─"*36}')
+                    for i, n in rows:
+                        marker = ' ◀' if i == current else ''
+                        print(f'  {i:<5} {n:<30}{marker}')
+                    if not rows:
+                        print('  (no snapshots defined)')
+                    print()
 
             elif cmd == 'clients':
                 now = time.time()
@@ -530,9 +667,15 @@ class XR18Simulator:
                 print('  set <addr> <val>             Set any OSC address and push to app')
                 print('  link <1|2|3> <0|1>          Toggle stereo pairing for bus pair')
                 print('  name <ch> <name>             Set channel name (ch = 1-16)')
-                print('  mute aux <bus> <0|1>           Set AUX bus on/off (0=muted, 1=unmuted)')
+                print('  mute aux <bus> <0|1>         Set AUX bus on/off (0=muted, 1=unmuted)')
+                print('  lr                           Show Main LR fader and mute state')
+                print('  lr fader <0.0-1.0>           Set Main LR fader level and push')
+                print('  lr mute <0|1>                Set Main LR mute (0=muted, 1=unmuted) and push')
                 print('  meters [on|off]              Show or toggle VU meter simulation')
                 print('    off → stops /meters/1; app shows "sin conexión" after ~15s')
+                print('  snap                         List all snapshots')
+                print('  snap load <N>                Load snapshot N (pushes /-snap/index to app)')
+                print('  snap name <N> <name>         Set snapshot name')
                 print('  clients                      Show registered /xremote clients')
                 print('  q / quit                     Exit')
 
