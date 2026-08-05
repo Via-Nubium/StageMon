@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 500">
+  <defs>
+    <!-- Outer background — neutral slate, deliberately a different hue from the icon's blue for contrast -->
+    <linearGradient id="outerBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3A4048"/>
+      <stop offset="100%" stop-color="#20242A"/>
+    </linearGradient>
+
+    <!-- Icon-internal gradients (from assets/icon/icon.svg) -->
+    <linearGradient id="iconBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1A3A5C"/>
+      <stop offset="100%" stop-color="#0D2040"/>
+    </linearGradient>
+    <radialGradient id="centerGlow" cx="50%" cy="45%" r="55%">
+      <stop offset="0%" stop-color="#1A4A8A" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#070D18" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="trackGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0A1828"/>
+      <stop offset="100%" stop-color="#050C16"/>
+    </linearGradient>
+    <linearGradient id="knobGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#64B5F6"/>
+      <stop offset="100%" stop-color="#1565C0"/>
+    </linearGradient>
+    <linearGradient id="knobGrad2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#42A5F5"/>
+      <stop offset="100%" stop-color="#0D47A1"/>
+    </linearGradient>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background — fully opaque, no alpha (Play Store feature graphic requirement) -->
+  <rect width="1024" height="500" fill="url(#outerBgGrad)"/>
+
+  <!-- App icon, reduced from assets/icon/icon.svg, lifted off the background with a drop shadow -->
+  <g transform="translate(64,80) scale(0.664)">
+    <rect width="512" height="512" rx="108" fill="url(#iconBgGrad)"/>
+    <rect width="512" height="512" rx="108" fill="url(#centerGlow)"/>
+    <rect width="512" height="512" rx="108" fill="none" stroke="#3A6EA5" stroke-width="4" stroke-opacity="0.5"/>
+
+    <g transform="translate(256,256) scale(1.12) translate(-256,-256)">
+      <!-- Fader 1 -->
+      <rect x="125" y="118" width="16" height="276" rx="8" fill="url(#trackGrad)"/>
+      <rect x="120" y="172" width="26" height="2" rx="1" fill="#2979FF" opacity="0.4"/>
+      <rect x="120" y="238" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
+      <rect x="120" y="304" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
+      <rect x="120" y="370" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
+      <rect x="98" y="153" width="70" height="44" rx="10" fill="url(#knobGrad)" filter="url(#softGlow)"/>
+      <rect x="98" y="153" width="70" height="44" rx="10" fill="none" stroke="#5BB8FF" stroke-width="1.5" stroke-opacity="0.5"/>
+      <rect x="108" y="173" width="50" height="3" rx="1.5" fill="white" opacity="0.4"/>
+
+      <!-- Fader 2 -->
+      <rect x="248" y="118" width="16" height="276" rx="8" fill="url(#trackGrad)"/>
+      <rect x="243" y="172" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
+      <rect x="243" y="238" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
+      <rect x="243" y="304" width="26" height="2" rx="1" fill="#2979FF" opacity="0.4"/>
+      <rect x="243" y="370" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
+      <rect x="221" y="288" width="70" height="44" rx="10" fill="url(#knobGrad2)" filter="url(#softGlow)"/>
+      <rect x="221" y="288" width="70" height="44" rx="10" fill="none" stroke="#5BB8FF" stroke-width="1.5" stroke-opacity="0.5"/>
+      <rect x="231" y="308" width="50" height="3" rx="1.5" fill="white" opacity="0.4"/>
+
+      <!-- Fader 3 -->
+      <rect x="371" y="118" width="16" height="276" rx="8" fill="url(#trackGrad)"/>
+      <rect x="366" y="172" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
+      <rect x="366" y="238" width="26" height="2" rx="1" fill="#2979FF" opacity="0.4"/>
+      <rect x="366" y="304" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
+      <rect x="366" y="370" width="26" height="2" rx="1" fill="#2979FF" opacity="0.25"/>
+      <rect x="344" y="223" width="70" height="44" rx="10" fill="url(#knobGrad)" filter="url(#softGlow)"/>
+      <rect x="344" y="223" width="70" height="44" rx="10" fill="none" stroke="#5BB8FF" stroke-width="1.5" stroke-opacity="0.5"/>
+      <rect x="354" y="243" width="50" height="3" rx="1.5" fill="white" opacity="0.4"/>
+    </g>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="440" y="270" font-family="Arial, Helvetica, sans-serif" font-size="88" font-weight="700" fill="#FFFFFF">StageMon</text>
+  <!-- Tagline -->
+  <text x="442" y="312" font-family="Arial, Helvetica, sans-serif" font-size="26" fill="#8FB8E8">Monitor mix control for Behringer X Air</text>
+</svg>
