@@ -21,14 +21,14 @@ Designed for live sound: each musician on stage can use StageMon to adjust their
 
 <table>
   <tr>
-    <td><img src="marketing/screenshots/01-mix.png" width="200" alt="Fader control screen"></td>
-    <td><img src="marketing/screenshots/02-snapshots.png" width="200" alt="Snapshots list"></td>
-    <td><img src="marketing/screenshots/03-visible-channels.png" width="200" alt="Visible channels settings"></td>
+    <td><img src="marketing/Screenshots/01-mix.png" width="200" alt="Fader control screen"></td>
+    <td><img src="marketing/Screenshots/02-snapshots.png" width="200" alt="Snapshots list"></td>
+    <td><img src="marketing/Screenshots/03-visible-channels.png" width="200" alt="Visible channels settings"></td>
   </tr>
   <tr>
-    <td><img src="marketing/screenshots/04-group-faders.png" width="200" alt="Group fader screen"></td>
-    <td><img src="marketing/screenshots/05-auto-discovery.png" width="200" alt="Mixer auto-discovery screen"></td>
-    <td><img src="marketing/screenshots/06-landscape.png" width="200" alt="Landscape mode"></td>
+    <td><img src="marketing/Screenshots/04-group-faders.png" width="200" alt="Group fader screen"></td>
+    <td><img src="marketing/Screenshots/05-auto-discovery.png" width="200" alt="Mixer auto-discovery screen"></td>
+    <td><img src="marketing/Screenshots/06-landscape.png" width="200" alt="Landscape mode"></td>
   </tr>
 </table>
 
