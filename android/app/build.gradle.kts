@@ -52,6 +52,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Installs as a separate app from the Play Store release, so local
+            // iteration never conflicts with the signed build testers have installed.
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+        }
         release {
             signingConfig = signingConfigs.getByName("release")
         }
