@@ -21,6 +21,7 @@
   "auxOutput": "Salida AUX",
   "auxFaderLabel": "AUX {bus}",
   "auxOutputVolume": "Volumen de la salida AUX seleccionada",
+  "auxAlwaysVisible": "Siempre visible",
   "disconnect": "Desconectarse",
   "disconnectConfirm": "¿Querés volver a la pantalla de conexión?",
   "cancel": "Cancelar",

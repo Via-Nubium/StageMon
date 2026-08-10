@@ -73,6 +73,9 @@
   "auxOutputVolume": "Volume of the selected aux send",
   "@auxOutputVolume": {},
 
+  "auxAlwaysVisible": "Always visible",
+  "@auxAlwaysVisible": {},
+
   "disconnect": "Disconnect",
   "@disconnect": {},
 

@@ -12,6 +12,7 @@ class SettingsScreen extends StatefulWidget {
   final List<GroupFaderConfig> groupConfigs;
   final Set<int> selectedFxReturns;
   final bool showLineIn;
+  final bool auxAlwaysVisible;
 
   const SettingsScreen({
     super.key,
@@ -22,6 +23,7 @@ class SettingsScreen extends StatefulWidget {
     required this.groupConfigs,
     required this.selectedFxReturns,
     required this.showLineIn,
+    required this.auxAlwaysVisible,
   });
 
   @override
@@ -35,6 +37,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late List<GroupFaderConfig> _groupConfigs;
   late Set<int> _selectedFxReturns;
   late bool _showLineIn;
+  late bool _auxAlwaysVisible;
 
   @override
   void initState() {
@@ -45,12 +48,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _groupConfigs = List.of(widget.groupConfigs);
     _selectedFxReturns = Set.of(widget.selectedFxReturns);
     _showLineIn = widget.showLineIn;
+    _auxAlwaysVisible = widget.auxAlwaysVisible;
   }
 
-  void _pop() => Navigator.pop(
-        context,
-        (_selected, _showAuxFader, _bus, _groupConfigs, _selectedFxReturns, _showLineIn),
-      );
+  void _pop() => Navigator.pop(context, (
+    _selected,
+    _showAuxFader,
+    _bus,
+    _groupConfigs,
+    _selectedFxReturns,
+    _showLineIn,
+    _auxAlwaysVisible,
+  ));
 
   void _disconnect() {
     Navigator.of(context).popUntil((route) => route.isFirst);
@@ -137,7 +146,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     ...List.generate(16, (i) {
                       final ch = i + 1;
-                      final label = widget.channelNames[ch] ??
+                      final label =
+                          widget.channelNames[ch] ??
                           'Ch ${ch.toString().padLeft(2, '0')}';
                       return FilterChip(
                         label: Text(label),
@@ -202,7 +212,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ? l.noChannelsAssigned
                     : l.channelCount(cfg.memberCount);
                 return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 4,
+                  ),
                   child: Row(
                     children: [
                       Expanded(
@@ -211,8 +224,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(cfg.name),
-                            Text(subtitle,
-                                style: const TextStyle(fontSize: 12)),
+                            Text(
+                              subtitle,
+                              style: const TextStyle(fontSize: 12),
+                            ),
                           ],
                         ),
                       ),
@@ -254,6 +269,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
               ),
+              Padding(
+                padding: const EdgeInsets.only(left: 24, right: 8),
+                child: SwitchListTile(
+                  value: _auxAlwaysVisible,
+                  onChanged: _showAuxFader
+                      ? (on) => setState(() => _auxAlwaysVisible = on)
+                      : null,
+                  dense: true,
+                  title: Text(l.auxAlwaysVisible),
+                ),
+              ),
               const Divider(height: 32),
               ListTile(
                 leading: const Icon(Icons.info_outline),
@@ -271,7 +297,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: _disconnect,
-                    icon: const Icon(Icons.power_settings_new, color: Colors.red),
+                    icon: const Icon(
+                      Icons.power_settings_new,
+                      color: Colors.red,
+                    ),
                     label: Text(
                       l.disconnect,
                       style: const TextStyle(color: Colors.red),
