@@ -8,6 +8,7 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
   MixerController({required this.service}) {
     WidgetsBinding.instance.addObserver(this);
     _loadChannelNames();
+    _loadBusNames();
     _trackBusLink();
     _setupFaderListeners(effectiveBus);
     _trackLineInFader();
@@ -30,6 +31,7 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
   int get effectiveBus => (_busPaired && _bus.isEven) ? _bus - 1 : _bus;
 
   final Map<int, String> channelNames = {};
+  final Map<int, String> busNames = {};
   final Map<int, double> faderValues = {};
   final Map<int, double> panValues = {};
   final Map<int, double> fxReturnValues = {};
@@ -54,6 +56,7 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
 
   // ── Private listener maps ─────────────────────────────────────────────────
   final Map<int, void Function(dynamic)> _nameListeners = {};
+  final Map<int, void Function(dynamic)> _busNameListeners = {};
   final Map<int, void Function(dynamic)> _faderListeners = {};
   final Map<int, void Function(dynamic)> _panListeners = {};
   final Map<int, void Function(dynamic)> _fxReturnListeners = {};
@@ -367,6 +370,21 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
+  void _loadBusNames() {
+    for (int busNum = 1; busNum <= 6; busNum++) {
+      final address = _buildBusNameAddress(busNum);
+      void listener(dynamic value) {
+        if (value is! String || _disposed) return;
+        final name = value.trim().replaceAll('\x00', '');
+        busNames[busNum] = name;
+        notifyListeners();
+      }
+      _busNameListeners[busNum] = listener;
+      service.addListener(address, listener);
+      service.request(address);
+    }
+  }
+
   // ── OSC address helpers ───────────────────────────────────────────────────
 
   String _buildBusAddress(int channel, int busNum) {
@@ -376,6 +394,8 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   String _buildAuxAddress(int busNum) => '/bus/$busNum/mix/fader';
+
+  String _buildBusNameAddress(int busNum) => '/bus/$busNum/config/name';
 
   String _buildPanAddress(int channel, int busNum) {
     final ch = channel.toString().padLeft(2, '0');
@@ -417,6 +437,11 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
   String channelLabel(int ch) =>
       channelNames[ch] ?? 'Ch ${ch.toString().padLeft(2, '0')}';
 
+  String busLabel(int busNum) {
+    final name = busNames[busNum];
+    return (name == null || name.isEmpty) ? '$busNum' : '$busNum · $name';
+  }
+
   // ── Dispose ───────────────────────────────────────────────────────────────
 
   @override
@@ -426,6 +451,9 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
     for (final entry in _nameListeners.entries) {
       final address = '/ch/${entry.key.toString().padLeft(2, '0')}/config/name';
       service.removeListener(address, entry.value);
+    }
+    for (final entry in _busNameListeners.entries) {
+      service.removeListener(_buildBusNameAddress(entry.key), entry.value);
     }
     for (int ch = 1; ch <= 16; ch++) {
       final fl = _faderListeners[ch];

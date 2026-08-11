@@ -239,12 +239,8 @@
   "fxReturns": "FX Returns",
   "@fxReturns": {},
 
-  "auxBusMuted": "Bus {busTitle} is muted",
-  "@auxBusMuted": {
-    "placeholders": {
-      "busTitle": {"type": "String"}
-    }
-  },
+  "mutedBadge": "MUTED",
+  "@mutedBadge": {},
 
   "muteMuting": "Muting {label}",
   "@muteMuting": {

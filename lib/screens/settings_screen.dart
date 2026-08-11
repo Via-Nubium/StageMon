@@ -7,6 +7,7 @@ import 'group_config_screen.dart';
 class SettingsScreen extends StatefulWidget {
   final Set<int> selectedChannels;
   final Map<int, String> channelNames;
+  final Map<int, String> busNames;
   final bool showAuxFader;
   final int bus;
   final List<GroupFaderConfig> groupConfigs;
@@ -18,6 +19,7 @@ class SettingsScreen extends StatefulWidget {
     super.key,
     required this.selectedChannels,
     required this.channelNames,
+    required this.busNames,
     required this.showAuxFader,
     required this.bus,
     required this.groupConfigs,
@@ -118,13 +120,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: SegmentedButton<int>(
-                  segments: List.generate(
-                    6,
-                    (i) => ButtonSegment(value: i + 1, label: Text("${i + 1}")),
-                  ),
-                  selected: {_bus},
-                  onSelectionChanged: (sel) => setState(() => _bus = sel.first),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: List.generate(6, (i) {
+                    final busNum = i + 1;
+                    final name = widget.busNames[busNum];
+                    final label = (name == null || name.isEmpty)
+                        ? '$busNum'
+                        : '$busNum · $name';
+                    return ChoiceChip(
+                      label: Text(label),
+                      selected: _bus == busNum,
+                      onSelected: (on) {
+                        if (on) setState(() => _bus = busNum);
+                      },
+                    );
+                  }),
                 ),
               ),
               const Divider(height: 32),
@@ -262,7 +274,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: SwitchListTile(
                   value: _showAuxFader,
                   onChanged: (on) => setState(() => _showAuxFader = on),
-                  title: Text(l.auxFaderLabel(widget.bus)),
+                  title: Text(
+                    widget.busNames[_bus] == null || widget.busNames[_bus]!.isEmpty
+                        ? l.auxFaderLabel(_bus)
+                        : '${l.auxFaderLabel(_bus)} · ${widget.busNames[_bus]}',
+                  ),
                   subtitle: Text(
                     l.auxOutputVolume,
                     style: const TextStyle(fontSize: 12),

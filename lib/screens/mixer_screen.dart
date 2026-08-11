@@ -141,6 +141,7 @@ class _MixerScreenState extends State<MixerScreen> {
             builder: (_) => SettingsScreen(
               selectedChannels: _selectedChannels,
               channelNames: _ctrl.channelNames,
+              busNames: _ctrl.busNames,
               showAuxFader: _showAuxFader,
               bus: _ctrl.bus,
               groupConfigs: _groupConfigs,
@@ -463,9 +464,13 @@ class _MixerScreenState extends State<MixerScreen> {
       listenable: _ctrl,
       builder: (context, _) {
         final l = AppLocalizations.of(context)!;
-        final busTitle = _ctrl.busPaired
+        final busName = _ctrl.busNames[_ctrl.effectiveBus];
+        final busTitleBase = _ctrl.busPaired
             ? l.busTitleStereo(_ctrl.effectiveBus, _ctrl.effectiveBus + 1)
             : l.busTitleMono(_ctrl.bus);
+        final busTitle = (busName == null || busName.isEmpty)
+            ? busTitleBase
+            : '$busTitleBase · $busName';
         final channels = _selectedChannels.toList()..sort();
         final visibleFxReturns = _selectedFxReturns.toList()..sort();
         final visibleGroups = _groupConfigs
@@ -510,7 +515,32 @@ class _MixerScreenState extends State<MixerScreen> {
           },
           child: Scaffold(
             appBar: AppBar(
-              title: Text(busTitle),
+              title: Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      busTitle,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: _ctrl.auxMuted == true ? Colors.red : null,
+                      ),
+                    ),
+                  ),
+                  if (_ctrl.auxMuted == true) ...[
+                    const SizedBox(width: 8),
+                    const Icon(Icons.volume_off, color: Colors.red, size: 18),
+                    const SizedBox(width: 4),
+                    Text(
+                      l.mutedBadge,
+                      style: const TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
               automaticallyImplyLeading: false,
               leading: IconButton(
                 icon: const Icon(Icons.settings),
@@ -535,11 +565,10 @@ class _MixerScreenState extends State<MixerScreen> {
                   valueListenable: widget.service.isReceiving,
                   builder: (_, receiving, _) {
                     final showNoConn = !receiving;
-                    final showMuted = _ctrl.auxMuted == true;
                     return AnimatedSize(
                       duration: const Duration(milliseconds: 250),
                       curve: Curves.easeInOut,
-                      child: (showNoConn || showMuted)
+                      child: showNoConn
                           ? Container(
                               width: double.infinity,
                               padding: const EdgeInsets.symmetric(
@@ -547,40 +576,25 @@ class _MixerScreenState extends State<MixerScreen> {
                                 vertical: 7,
                               ),
                               child: Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  if (showNoConn) ...[
-                                    const Icon(
-                                      Icons
-                                          .signal_wifi_statusbar_connected_no_internet_4,
-                                      color: Colors.amber,
-                                      size: 16,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
+                                  const Icon(
+                                    Icons
+                                        .signal_wifi_statusbar_connected_no_internet_4,
+                                    color: Colors.amber,
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
                                       l.noConnection,
+                                      overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
                                         color: Colors.amber,
                                         fontSize: 13,
                                       ),
                                     ),
-                                  ],
-                                  if (showNoConn && showMuted)
-                                    const SizedBox(width: 16),
-                                  if (showMuted) ...[
-                                    const Icon(
-                                      Icons.volume_off,
-                                      color: Colors.red,
-                                      size: 16,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      l.auxBusMuted(busTitle),
-                                      style: const TextStyle(
-                                        color: Colors.red,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ],
+                                  ),
                                 ],
                               ),
                             )

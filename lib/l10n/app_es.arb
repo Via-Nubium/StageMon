@@ -62,7 +62,7 @@
   "privacyPolicy": "Política de privacidad",
   "version": "Versión",
   "fxReturns": "FX Returns",
-  "auxBusMuted": "Bus {busTitle} muteado",
+  "mutedBadge": "MUTEADO",
   "muteMuting": "Muteando {label}",
   "muteUnmuting": "Desmuteando {label}",
   "openSourceLicenses": "Licencias de código abierto",

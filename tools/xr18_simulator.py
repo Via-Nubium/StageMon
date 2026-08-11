@@ -168,9 +168,14 @@ class XR18Simulator:
             for bus in range(1, 7):
                 bs = str(bus).zfill(2)
                 self._state[f'/rtn/aux/mix/{bs}/grpon'] = 1  # Line In
+            _sample_bus_names = [
+                'Monitor 1', 'Monitor 2', 'IEM Bajo', 'IEM Voz',
+                'Grabacion', 'FX Send',
+            ]
             for bus in range(1, 7):
                 self._state[f'/bus/{bus}/mix/fader'] = 0.75  # ~unity (0 dB)
                 self._state[f'/bus/{bus}/mix/on'] = 1         # unmuted
+                self._state[f'/bus/{bus}/config/name'] = _sample_bus_names[bus - 1]
             self._state['/lr/mix/fader'] = 0.75  # ~unity (0 dB)
             self._state['/lr/mix/on'] = 1         # unmuted
             self._state['/config/buslink/1-2'] = 0
@@ -380,7 +385,7 @@ class XR18Simulator:
         print(f'XR18 Simulator — {ip}:{self._port}')
         print(f'Name: {self._device_name}  |  Model: {self._model}')
         print()
-        print('Commands: state [bus] | set <addr> <val> | link <1-3> <0/1> | name <ch> <name> | lr [fader x | mute x] | meters [on|off] | snap [load N | name N x] | clients | q')
+        print('Commands: state [bus] | set <addr> <val> | link <1-3> <0/1> | name <ch> <name> | busname <bus 1-6> <name> | lr [fader x | mute x] | meters [on|off] | snap [load N | name N x] | clients | q')
         print()
 
         recv_thread = threading.Thread(target=self._recv_loop, daemon=True)
@@ -505,6 +510,25 @@ class XR18Simulator:
                     continue
                 name = parts[2].strip('"\'')
                 addr = f'/ch/{str(ch).zfill(2)}/config/name'
+                with self._state_lock:
+                    self._state[addr] = name
+                self._push_to_xremote(addr, name)
+                print(f'  {addr} = {name!r}  (pushed)')
+
+            elif cmd == 'busname':
+                if len(parts) < 3:
+                    print('  Usage: busname <bus 1-6> <name>')
+                    continue
+                try:
+                    bus_n = int(parts[1])
+                except ValueError:
+                    print('  bus must be an integer 1-6')
+                    continue
+                if not 1 <= bus_n <= 6:
+                    print('  bus must be 1-6')
+                    continue
+                name = parts[2].strip('"\'')
+                addr = f'/bus/{bus_n}/config/name'
                 with self._state_lock:
                     self._state[addr] = name
                 self._push_to_xremote(addr, name)
@@ -667,6 +691,7 @@ class XR18Simulator:
                 print('  set <addr> <val>             Set any OSC address and push to app')
                 print('  link <1|2|3> <0|1>          Toggle stereo pairing for bus pair')
                 print('  name <ch> <name>             Set channel name (ch = 1-16)')
+                print('  busname <bus 1-6> <name>     Set AUX bus name and push to app')
                 print('  mute aux <bus> <0|1>         Set AUX bus on/off (0=muted, 1=unmuted)')
                 print('  lr                           Show Main LR fader and mute state')
                 print('  lr fader <0.0-1.0>           Set Main LR fader level and push')
