@@ -42,9 +42,9 @@ class _MixerScreenState extends State<MixerScreen> {
     16,
   };
   Set<int> _selectedFxReturns = {};
-  bool _showAuxFader = true;
+  bool _showBusFader = true;
   bool _showLineIn = false;
-  bool _auxAlwaysVisible = false;
+  bool _busAlwaysVisible = false;
   List<GroupFaderConfig> _groupConfigs = GroupFaderConfig.defaultConfigs();
   final SnapshotManager _snapshots = SnapshotManager();
 
@@ -63,11 +63,11 @@ class _MixerScreenState extends State<MixerScreen> {
     if (!mounted) return;
     final savedBus = prefs.getInt('selected_bus') ?? 1;
     final savedChannelsList = prefs.getStringList('selected_channels');
-    final savedShowAux = prefs.getBool('show_aux_fader') ?? true;
+    final savedShowBus = prefs.getBool('show_bus_fader') ?? true;
     final savedGroups = prefs.getString('group_faders_v1');
     final savedFxReturnsList = prefs.getStringList('selected_fx_returns');
     final savedShowLineIn = prefs.getBool('show_line_in') ?? false;
-    final savedAuxAlwaysVisible = prefs.getBool('aux_always_visible') ?? false;
+    final savedBusAlwaysVisible = prefs.getBool('bus_always_visible') ?? false;
     if (savedChannelsList != null) {
       setState(
         () => _selectedChannels = savedChannelsList.map(int.parse).toSet(),
@@ -79,9 +79,9 @@ class _MixerScreenState extends State<MixerScreen> {
       );
     }
     setState(() {
-      _showAuxFader = savedShowAux;
+      _showBusFader = savedShowBus;
       _showLineIn = savedShowLineIn;
-      _auxAlwaysVisible = savedAuxAlwaysVisible;
+      _busAlwaysVisible = savedBusAlwaysVisible;
     });
     if (savedGroups != null) {
       try {
@@ -142,12 +142,12 @@ class _MixerScreenState extends State<MixerScreen> {
               selectedChannels: _selectedChannels,
               channelNames: _ctrl.channelNames,
               busNames: _ctrl.busNames,
-              showAuxFader: _showAuxFader,
+              showBusFader: _showBusFader,
               bus: _ctrl.bus,
               groupConfigs: _groupConfigs,
               selectedFxReturns: _selectedFxReturns,
               showLineIn: _showLineIn,
-              auxAlwaysVisible: _auxAlwaysVisible,
+              busAlwaysVisible: _busAlwaysVisible,
             ),
           ),
         );
@@ -155,25 +155,25 @@ class _MixerScreenState extends State<MixerScreen> {
       _ctrl.changeBus(result.$3);
       setState(() {
         _selectedChannels = result.$1;
-        _showAuxFader = result.$2;
+        _showBusFader = result.$2;
         _groupConfigs = result.$4;
         _selectedFxReturns = result.$5;
         _showLineIn = result.$6;
-        _auxAlwaysVisible = result.$7;
+        _busAlwaysVisible = result.$7;
       });
       SharedPreferences.getInstance().then((p) {
         p.setStringList(
           'selected_channels',
           result.$1.map((e) => e.toString()).toList(),
         );
-        p.setBool('show_aux_fader', result.$2);
+        p.setBool('show_bus_fader', result.$2);
         p.setString('group_faders_v1', GroupFaderConfig.toJsonList(result.$4));
         p.setStringList(
           'selected_fx_returns',
           result.$5.map((e) => e.toString()).toList(),
         );
         p.setBool('show_line_in', result.$6);
-        p.setBool('aux_always_visible', result.$7);
+        p.setBool('bus_always_visible', result.$7);
       });
     }
   }
@@ -235,12 +235,12 @@ class _MixerScreenState extends State<MixerScreen> {
         _ctrl.service.send(_ctrl.lineInPanAddress(), snapshot.lineInPan!);
       }
     }
-    if (_showAuxFader) {
-      if (snapshot.auxLevel != null) {
-        _ctrl.service.send(_ctrl.auxAddress(), snapshot.auxLevel!);
+    if (_showBusFader) {
+      if (snapshot.busLevel != null) {
+        _ctrl.service.send(_ctrl.busFaderAddress(), snapshot.busLevel!);
       }
-      if (snapshot.auxMuted != null) {
-        _ctrl.setAuxMuted(snapshot.auxMuted!);
+      if (snapshot.busMuted != null) {
+        _ctrl.setBusMuted(snapshot.busMuted!);
       }
     }
   }
@@ -304,8 +304,8 @@ class _MixerScreenState extends State<MixerScreen> {
                               name,
                               Map.of(_ctrl.faderValues),
                               panValues: Map.of(_ctrl.panValues),
-                              auxLevel: _ctrl.auxFaderValue,
-                              auxMuted: _ctrl.auxMuted,
+                              busLevel: _ctrl.busFaderValue,
+                              busMuted: _ctrl.busMuted,
                               fxReturnValues: Map.of(_ctrl.fxReturnValues),
                               fxReturnPanValues: Map.of(
                                 _ctrl.fxReturnPanValues,
@@ -416,8 +416,8 @@ class _MixerScreenState extends State<MixerScreen> {
                                     i,
                                     Map.of(_ctrl.faderValues),
                                     panValues: Map.of(_ctrl.panValues),
-                                    auxLevel: _ctrl.auxFaderValue,
-                                    auxMuted: _ctrl.auxMuted,
+                                    busLevel: _ctrl.busFaderValue,
+                                    busMuted: _ctrl.busMuted,
                                     fxReturnValues: Map.of(
                                       _ctrl.fxReturnValues,
                                     ),
@@ -478,8 +478,8 @@ class _MixerScreenState extends State<MixerScreen> {
             .entries
             .where((e) => e.value.visible)
             .toList();
-        final auxPinned = _showAuxFader && _auxAlwaysVisible;
-        final auxFader = Container(
+        final busPinned = _showBusFader && _busAlwaysVisible;
+        final busFader = Container(
           width: 90,
           color: const Color.fromARGB(255, 14, 23, 43),
           child: Column(
@@ -487,23 +487,23 @@ class _MixerScreenState extends State<MixerScreen> {
               const SizedBox(height: kPanKnobHeight),
               Expanded(
                 child: CustomFader(
-                  key: const ValueKey('aux'),
-                  label: 'Master',
-                  oscAddress: _ctrl.auxAddress(),
+                  key: const ValueKey('bus'),
+                  label: 'BUS',
+                  oscAddress: _ctrl.busFaderAddress(),
                   service: widget.service,
                   accentColor: Colors.amber,
                   isMain: true,
-                  meterLevel: _ctrl.auxMeterLevel,
+                  meterLevel: _ctrl.busMeterLevel,
                   meterLevelRight: _ctrl.busPaired
-                      ? _ctrl.auxMeterLevelRight
+                      ? _ctrl.busMeterLevelRight
                       : null,
                 ),
               ),
               MuteButton(
-                key: const ValueKey('mute_aux'),
-                isMuted: _ctrl.auxMuted == true,
-                label: 'Master',
-                onToggle: _ctrl.setAuxMuted,
+                key: const ValueKey('mute_bus'),
+                isMuted: _ctrl.busMuted == true,
+                label: 'Bus',
+                onToggle: _ctrl.setBusMuted,
               ),
             ],
           ),
@@ -522,11 +522,11 @@ class _MixerScreenState extends State<MixerScreen> {
                       busTitle,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: _ctrl.auxMuted == true ? Colors.red : null,
+                        color: _ctrl.busMuted == true ? Colors.red : null,
                       ),
                     ),
                   ),
-                  if (_ctrl.auxMuted == true) ...[
+                  if (_ctrl.busMuted == true) ...[
                     const SizedBox(width: 8),
                     const Icon(Icons.volume_off, color: Colors.red, size: 18),
                     const SizedBox(width: 4),
@@ -611,7 +611,7 @@ class _MixerScreenState extends State<MixerScreen> {
                           scrollDirection: Axis.horizontal,
                           padding: EdgeInsets.only(
                             left: MediaQuery.viewPaddingOf(context).left,
-                            right: auxPinned
+                            right: busPinned
                                 ? 0
                                 : MediaQuery.viewPaddingOf(context).right,
                           ),
@@ -753,17 +753,17 @@ class _MixerScreenState extends State<MixerScreen> {
                                   ),
                                 ),
                               ),
-                              if (_showAuxFader && !auxPinned) auxFader,
+                              if (_showBusFader && !busPinned) busFader,
                             ],
                           ),
                         ),
                       ),
-                      if (auxPinned)
+                      if (busPinned)
                         Padding(
                           padding: EdgeInsets.only(
                             right: MediaQuery.viewPaddingOf(context).right,
                           ),
-                          child: auxFader,
+                          child: busFader,
                         ),
                     ],
                   ),

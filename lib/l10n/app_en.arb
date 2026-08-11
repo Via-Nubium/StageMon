@@ -38,7 +38,7 @@
   "settings": "Settings",
   "@settings": {},
 
-  "auxBus": "Aux send",
+  "auxBus": "Aux bus",
   "@auxBus": {},
 
   "visibleChannels": "Visible channels",
@@ -60,21 +60,21 @@
   "configureChannels": "Configure channels",
   "@configureChannels": {},
 
-  "auxOutput": "Aux output",
-  "@auxOutput": {},
+  "busFaderVisibility": "Bus fader",
+  "@busFaderVisibility": {},
 
-  "auxFaderLabel": "Aux {bus}",
-  "@auxFaderLabel": {
+  "busFaderLabel": "Bus {bus}",
+  "@busFaderLabel": {
     "placeholders": {
       "bus": {"type": "int"}
     }
   },
 
-  "auxOutputVolume": "Volume of the selected aux send",
-  "@auxOutputVolume": {},
+  "busFaderVolume": "Volume of the selected bus",
+  "@busFaderVolume": {},
 
-  "auxAlwaysVisible": "Always visible",
-  "@auxAlwaysVisible": {},
+  "busAlwaysVisible": "Always visible",
+  "@busAlwaysVisible": {},
 
   "disconnect": "Disconnect",
   "@disconnect": {},

@@ -12,7 +12,7 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
     _trackBusLink();
     _setupFaderListeners(effectiveBus);
     _trackLineInFader();
-    _trackAuxFader();
+    _trackBusFader();
     service.channelLevels.addListener(_onChannelMeters);
     service.busLevels.addListener(_onBusMeters);
     service.lineInLevels.addListener(_onLineInMeters);
@@ -39,14 +39,14 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
 
   double? lineInFaderValue;
   double? lineInPanValue;
-  double? auxFaderValue;
-  bool? auxMuted;
+  double? busFaderValue;
+  bool? busMuted;
 
   // ── Meter ValueNotifiers ──────────────────────────────────────────────────
   final List<ValueNotifier<double>> meterLevels =
       List.generate(16, (_) => ValueNotifier(0.0));
-  final ValueNotifier<double> auxMeterLevel = ValueNotifier(0.0);
-  final ValueNotifier<double> auxMeterLevelRight = ValueNotifier(0.0);
+  final ValueNotifier<double> busMeterLevel = ValueNotifier(0.0);
+  final ValueNotifier<double> busMeterLevelRight = ValueNotifier(0.0);
   final ValueNotifier<double> lineInMeterL = ValueNotifier(0.0);
   final ValueNotifier<double> lineInMeterR = ValueNotifier(0.0);
   final List<ValueNotifier<double>> fxReturnMeterL =
@@ -63,8 +63,8 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
   final Map<int, void Function(dynamic)> _fxReturnPanListeners = {};
   void Function(dynamic)? _lineInFaderListener;
   void Function(dynamic)? _lineInPanListener;
-  void Function(dynamic)? _auxFaderListener;
-  void Function(dynamic)? _auxMuteListener;
+  void Function(dynamic)? _busFaderListener;
+  void Function(dynamic)? _busMuteListener;
   void Function(dynamic)? _busLinkListener;
 
   // ── App lifecycle ─────────────────────────────────────────────────────────
@@ -83,8 +83,8 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
       }
       service.request(lineInAddress());
       service.request(lineInPanAddress());
-      service.request(auxAddress());
-      service.request(auxMuteAddress());
+      service.request(busFaderAddress());
+      service.request(busMuteAddress());
     }
   }
 
@@ -114,7 +114,7 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
     if (oldEb != newEb) {
       _setupFaderListeners(newEb, oldBus: oldEb);
       _reRegisterLineInFader(oldBus: oldEb, newBus: newEb);
-      _reRegisterAuxFader(oldBus: oldEb, newBus: newEb);
+      _reRegisterBusFader(oldBus: oldEb, newBus: newEb);
     }
     if (!_disposed) notifyListeners();
   }
@@ -172,16 +172,16 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  void _reRegisterAuxFader({required int oldBus, required int newBus}) {
-    if (_auxFaderListener != null) {
-      service.removeListener(_buildAuxAddress(oldBus), _auxFaderListener!);
-      service.addListener(_buildAuxAddress(newBus), _auxFaderListener!);
-      service.request(_buildAuxAddress(newBus));
+  void _reRegisterBusFader({required int oldBus, required int newBus}) {
+    if (_busFaderListener != null) {
+      service.removeListener(_buildBusFaderAddress(oldBus), _busFaderListener!);
+      service.addListener(_buildBusFaderAddress(newBus), _busFaderListener!);
+      service.request(_buildBusFaderAddress(newBus));
     }
-    if (_auxMuteListener != null) {
-      service.removeListener(_buildAuxMuteAddress(oldBus), _auxMuteListener!);
-      service.addListener(_buildAuxMuteAddress(newBus), _auxMuteListener!);
-      service.request(_buildAuxMuteAddress(newBus));
+    if (_busMuteListener != null) {
+      service.removeListener(_buildBusMuteAddress(oldBus), _busMuteListener!);
+      service.addListener(_buildBusMuteAddress(newBus), _busMuteListener!);
+      service.request(_buildBusMuteAddress(newBus));
     }
   }
 
@@ -217,13 +217,13 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
       service.removeListener(_buildLineInPanAddress(oldEb), _lineInPanListener!);
       _lineInPanListener = null;
     }
-    if (_auxFaderListener != null) {
-      service.removeListener(_buildAuxAddress(oldEb), _auxFaderListener!);
-      _auxFaderListener = null;
+    if (_busFaderListener != null) {
+      service.removeListener(_buildBusFaderAddress(oldEb), _busFaderListener!);
+      _busFaderListener = null;
     }
-    if (_auxMuteListener != null) {
-      service.removeListener(_buildAuxMuteAddress(oldEb), _auxMuteListener!);
-      _auxMuteListener = null;
+    if (_busMuteListener != null) {
+      service.removeListener(_buildBusMuteAddress(oldEb), _busMuteListener!);
+      _busMuteListener = null;
     }
 
     _bus = newBus;
@@ -235,13 +235,13 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
     fxReturnPanValues.clear();
     lineInFaderValue = null;
     lineInPanValue = null;
-    auxFaderValue = null;
-    auxMuted = null;
+    busFaderValue = null;
+    busMuted = null;
 
     _trackBusLink();
     _setupFaderListeners(effectiveBus);
     _trackLineInFader();
-    _trackAuxFader();
+    _trackBusFader();
     SharedPreferences.getInstance().then((p) => p.setInt('selected_bus', _bus));
     if (!_disposed) notifyListeners();
   }
@@ -274,26 +274,26 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  void _trackAuxFader() {
+  void _trackBusFader() {
     void faderListener(dynamic value) {
-      if (value is double) auxFaderValue = value;
+      if (value is double) busFaderValue = value;
     }
     void muteListener(dynamic value) {
       final enabled = value == 1 || value == 1.0;
-      auxMuted = !enabled;
+      busMuted = !enabled;
       if (!_disposed) notifyListeners();
     }
-    _auxFaderListener = faderListener;
-    _auxMuteListener = muteListener;
-    service.addListener(auxAddress(), faderListener);
-    service.request(auxAddress());
-    service.addListener(auxMuteAddress(), muteListener);
-    service.request(auxMuteAddress());
+    _busFaderListener = faderListener;
+    _busMuteListener = muteListener;
+    service.addListener(busFaderAddress(), faderListener);
+    service.request(busFaderAddress());
+    service.addListener(busMuteAddress(), muteListener);
+    service.request(busMuteAddress());
   }
 
-  void setAuxMuted(bool muted) {
-    service.send(auxMuteAddress(), muted ? 0 : 1);
-    auxMuted = muted;
+  void setBusMuted(bool muted) {
+    service.send(busMuteAddress(), muted ? 0 : 1);
+    busMuted = muted;
     if (!_disposed) notifyListeners();
   }
 
@@ -313,18 +313,18 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
     final levels = service.busLevels.value;
     final idxL = effectiveBus - 1;
     final targetL = idxL < levels.length ? levels[idxL] : 0.0;
-    final currentL = auxMeterLevel.value;
+    final currentL = busMeterLevel.value;
     final alphaL = targetL > currentL ? 0.7 : 0.12;
-    auxMeterLevel.value = currentL + (targetL - currentL) * alphaL;
+    busMeterLevel.value = currentL + (targetL - currentL) * alphaL;
 
     if (_busPaired) {
       final idxR = idxL + 1;
       final targetR = idxR < levels.length ? levels[idxR] : 0.0;
-      final currentR = auxMeterLevelRight.value;
+      final currentR = busMeterLevelRight.value;
       final alphaR = targetR > currentR ? 0.7 : 0.12;
-      auxMeterLevelRight.value = currentR + (targetR - currentR) * alphaR;
+      busMeterLevelRight.value = currentR + (targetR - currentR) * alphaR;
     } else {
-      auxMeterLevelRight.value = 0.0;
+      busMeterLevelRight.value = 0.0;
     }
   }
 
@@ -393,7 +393,7 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
     return '/ch/$ch/mix/$bus/level';
   }
 
-  String _buildAuxAddress(int busNum) => '/bus/$busNum/mix/fader';
+  String _buildBusFaderAddress(int busNum) => '/bus/$busNum/mix/fader';
 
   String _buildBusNameAddress(int busNum) => '/bus/$busNum/config/name';
 
@@ -413,7 +413,7 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
     return '/rtn/$rtn/mix/$bus/pan';
   }
 
-  String _buildAuxMuteAddress(int busNum) => '/bus/$busNum/mix/on';
+  String _buildBusMuteAddress(int busNum) => '/bus/$busNum/mix/on';
 
   String _buildLineInAddress(int busNum) {
     final bus = busNum.toString().padLeft(2, '0');
@@ -426,13 +426,13 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   String busAddress(int channel) => _buildBusAddress(channel, effectiveBus);
-  String auxAddress() => _buildAuxAddress(effectiveBus);
+  String busFaderAddress() => _buildBusFaderAddress(effectiveBus);
   String panAddress(int channel) => _buildPanAddress(channel, effectiveBus);
   String fxReturnAddress(int rtn) => _buildFxReturnAddress(rtn, effectiveBus);
   String fxReturnPanAddress(int rtn) => _buildFxReturnPanAddress(rtn, effectiveBus);
   String lineInAddress() => _buildLineInAddress(effectiveBus);
   String lineInPanAddress() => _buildLineInPanAddress(effectiveBus);
-  String auxMuteAddress() => _buildAuxMuteAddress(effectiveBus);
+  String busMuteAddress() => _buildBusMuteAddress(effectiveBus);
 
   String channelLabel(int ch) =>
       channelNames[ch] ?? 'Ch ${ch.toString().padLeft(2, '0')}';
@@ -473,11 +473,11 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
     if (_lineInPanListener != null) {
       service.removeListener(lineInPanAddress(), _lineInPanListener!);
     }
-    if (_auxFaderListener != null) {
-      service.removeListener(auxAddress(), _auxFaderListener!);
+    if (_busFaderListener != null) {
+      service.removeListener(busFaderAddress(), _busFaderListener!);
     }
-    if (_auxMuteListener != null) {
-      service.removeListener(auxMuteAddress(), _auxMuteListener!);
+    if (_busMuteListener != null) {
+      service.removeListener(busMuteAddress(), _busMuteListener!);
     }
     if (_busLinkListener != null) {
       service.removeListener(_busLinkAddress(), _busLinkListener!);
@@ -489,8 +489,8 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
     for (final n in meterLevels) {
       n.dispose();
     }
-    auxMeterLevel.dispose();
-    auxMeterLevelRight.dispose();
+    busMeterLevel.dispose();
+    busMeterLevelRight.dispose();
     lineInMeterL.dispose();
     lineInMeterR.dispose();
     for (final n in fxReturnMeterL) {

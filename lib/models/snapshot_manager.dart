@@ -5,8 +5,8 @@ class FaderSnapshot {
   String name;
   final Map<int, double> values;
   final Map<int, double> panValues;
-  final double? auxLevel;
-  final bool? auxMuted;
+  final double? busLevel;
+  final bool? busMuted;
   final Map<int, double> fxReturnValues;
   final Map<int, double> fxReturnPanValues;
   final double? lineInLevel;
@@ -16,8 +16,8 @@ class FaderSnapshot {
     required this.name,
     required this.values,
     Map<int, double>? panValues,
-    this.auxLevel,
-    this.auxMuted,
+    this.busLevel,
+    this.busMuted,
     Map<int, double>? fxReturnValues,
     Map<int, double>? fxReturnPanValues,
     this.lineInLevel,
@@ -30,8 +30,8 @@ class FaderSnapshot {
         'name': name,
         'values': values.map((k, v) => MapEntry(k.toString(), v)),
         'panValues': panValues.map((k, v) => MapEntry(k.toString(), v)),
-        if (auxLevel != null) 'auxLevel': auxLevel,
-        if (auxMuted != null) 'auxMuted': auxMuted! ? 1 : 0,
+        if (busLevel != null) 'busLevel': busLevel,
+        if (busMuted != null) 'busMuted': busMuted! ? 1 : 0,
         if (fxReturnValues.isNotEmpty)
           'fxReturnValues': fxReturnValues.map((k, v) => MapEntry(k.toString(), v)),
         if (fxReturnPanValues.isNotEmpty)
@@ -48,8 +48,8 @@ class FaderSnapshot {
             ? (json['panValues'] as Map<String, dynamic>)
                 .map((k, v) => MapEntry(int.parse(k), (v as num).toDouble()))
             : null,
-        auxLevel: json['auxLevel'] != null ? (json['auxLevel'] as num).toDouble() : null,
-        auxMuted: json['auxMuted'] != null ? (json['auxMuted'] as num) != 0 : null,
+        busLevel: json['busLevel'] != null ? (json['busLevel'] as num).toDouble() : null,
+        busMuted: json['busMuted'] != null ? (json['busMuted'] as num) != 0 : null,
         fxReturnValues: json['fxReturnValues'] != null
             ? (json['fxReturnValues'] as Map<String, dynamic>)
                 .map((k, v) => MapEntry(int.parse(k), (v as num).toDouble()))
@@ -84,8 +84,8 @@ class SnapshotManager {
     String name,
     Map<int, double> values, {
     Map<int, double>? panValues,
-    double? auxLevel,
-    bool? auxMuted,
+    double? busLevel,
+    bool? busMuted,
     Map<int, double>? fxReturnValues,
     Map<int, double>? fxReturnPanValues,
     double? lineInLevel,
@@ -95,8 +95,8 @@ class SnapshotManager {
       name: name,
       values: Map.of(values),
       panValues: panValues != null ? Map.of(panValues) : null,
-      auxLevel: auxLevel,
-      auxMuted: auxMuted,
+      busLevel: busLevel,
+      busMuted: busMuted,
       fxReturnValues: fxReturnValues != null ? Map.of(fxReturnValues) : null,
       fxReturnPanValues: fxReturnPanValues != null ? Map.of(fxReturnPanValues) : null,
       lineInLevel: lineInLevel,
@@ -119,8 +119,8 @@ class SnapshotManager {
     int index,
     Map<int, double> values, {
     Map<int, double>? panValues,
-    double? auxLevel,
-    bool? auxMuted,
+    double? busLevel,
+    bool? busMuted,
     Map<int, double>? fxReturnValues,
     Map<int, double>? fxReturnPanValues,
     double? lineInLevel,
@@ -131,8 +131,8 @@ class SnapshotManager {
       name: name,
       values: Map.of(values),
       panValues: panValues != null ? Map.of(panValues) : null,
-      auxLevel: auxLevel,
-      auxMuted: auxMuted,
+      busLevel: busLevel,
+      busMuted: busMuted,
       fxReturnValues: fxReturnValues != null ? Map.of(fxReturnValues) : null,
       fxReturnPanValues: fxReturnPanValues != null ? Map.of(fxReturnPanValues) : null,
       lineInLevel: lineInLevel,

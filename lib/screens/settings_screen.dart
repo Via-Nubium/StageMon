@@ -8,24 +8,24 @@ class SettingsScreen extends StatefulWidget {
   final Set<int> selectedChannels;
   final Map<int, String> channelNames;
   final Map<int, String> busNames;
-  final bool showAuxFader;
+  final bool showBusFader;
   final int bus;
   final List<GroupFaderConfig> groupConfigs;
   final Set<int> selectedFxReturns;
   final bool showLineIn;
-  final bool auxAlwaysVisible;
+  final bool busAlwaysVisible;
 
   const SettingsScreen({
     super.key,
     required this.selectedChannels,
     required this.channelNames,
     required this.busNames,
-    required this.showAuxFader,
+    required this.showBusFader,
     required this.bus,
     required this.groupConfigs,
     required this.selectedFxReturns,
     required this.showLineIn,
-    required this.auxAlwaysVisible,
+    required this.busAlwaysVisible,
   });
 
   @override
@@ -34,33 +34,33 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   late Set<int> _selected;
-  late bool _showAuxFader;
+  late bool _showBusFader;
   late int _bus;
   late List<GroupFaderConfig> _groupConfigs;
   late Set<int> _selectedFxReturns;
   late bool _showLineIn;
-  late bool _auxAlwaysVisible;
+  late bool _busAlwaysVisible;
 
   @override
   void initState() {
     super.initState();
     _selected = Set.of(widget.selectedChannels);
-    _showAuxFader = widget.showAuxFader;
+    _showBusFader = widget.showBusFader;
     _bus = widget.bus;
     _groupConfigs = List.of(widget.groupConfigs);
     _selectedFxReturns = Set.of(widget.selectedFxReturns);
     _showLineIn = widget.showLineIn;
-    _auxAlwaysVisible = widget.auxAlwaysVisible;
+    _busAlwaysVisible = widget.busAlwaysVisible;
   }
 
   void _pop() => Navigator.pop(context, (
     _selected,
-    _showAuxFader,
+    _showBusFader,
     _bus,
     _groupConfigs,
     _selectedFxReturns,
     _showLineIn,
-    _auxAlwaysVisible,
+    _busAlwaysVisible,
   ));
 
   void _disconnect() {
@@ -262,7 +262,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
                 child: Text(
-                  l.auxOutput,
+                  l.busFaderVisibility,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     color: Colors.white70,
                     letterSpacing: 0.8,
@@ -272,15 +272,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: SwitchListTile(
-                  value: _showAuxFader,
-                  onChanged: (on) => setState(() => _showAuxFader = on),
+                  value: _showBusFader,
+                  onChanged: (on) => setState(() => _showBusFader = on),
                   title: Text(
                     widget.busNames[_bus] == null || widget.busNames[_bus]!.isEmpty
-                        ? l.auxFaderLabel(_bus)
-                        : '${l.auxFaderLabel(_bus)} · ${widget.busNames[_bus]}',
+                        ? l.busFaderLabel(_bus)
+                        : '${l.busFaderLabel(_bus)} · ${widget.busNames[_bus]}',
                   ),
                   subtitle: Text(
-                    l.auxOutputVolume,
+                    l.busFaderVolume,
                     style: const TextStyle(fontSize: 12),
                   ),
                 ),
@@ -288,12 +288,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Padding(
                 padding: const EdgeInsets.only(left: 24, right: 8),
                 child: SwitchListTile(
-                  value: _auxAlwaysVisible,
-                  onChanged: _showAuxFader
-                      ? (on) => setState(() => _auxAlwaysVisible = on)
+                  value: _busAlwaysVisible,
+                  onChanged: _showBusFader
+                      ? (on) => setState(() => _busAlwaysVisible = on)
                       : null,
                   dense: true,
-                  title: Text(l.auxAlwaysVisible),
+                  title: Text(l.busAlwaysVisible),
                 ),
               ),
               const Divider(height: 32),
