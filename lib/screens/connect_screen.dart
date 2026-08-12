@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:stagemon/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/osc_service.dart';
+import '../services/xr18_simulator.dart';
 import 'mixer_screen.dart';
 
 enum _DiscoveryStatus { searching, found, notFound }
@@ -141,20 +142,23 @@ class _ConnectScreenState extends State<ConnectScreen> {
     _connect(console.ip);
   }
 
-  void _connect([String? overrideIp]) async {
+  void _connect([String? overrideIp, XR18Simulator? simulator]) async {
     final l = AppLocalizations.of(context)!;
     final ip = (overrideIp ?? _ipController.text).trim();
     if (ip.isEmpty) return;
-    if (!_isValidIp(ip)) {
+    if (simulator == null && !_isValidIp(ip)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l.invalidIp)),
       );
       return;
     }
-    final service = OscService(ip: ip);
+    final service = simulator == null
+        ? OscService(ip: ip)
+        : OscService(ip: ip, port: simulator.port);
     try {
       await service.init();
     } catch (e) {
+      simulator?.stop();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l.socketError(e.toString()))),
@@ -162,13 +166,37 @@ class _ConnectScreenState extends State<ConnectScreen> {
       return;
     }
     if (!mounted) return;
-    SharedPreferences.getInstance().then((p) => p.setString('last_ip', ip));
-    Navigator.push(
+    if (simulator == null) {
+      SharedPreferences.getInstance().then((p) => p.setString('last_ip', ip));
+    }
+    await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => MixerScreen(service: service),
+        builder: (_) => MixerScreen(service: service, simulator: simulator),
       ),
     );
+    // Back from MixerScreen (disconnect) — the previous discovery results are stale
+    // (the console we were connected to may no longer be reachable), so search again.
+    if (mounted) _discover();
+  }
+
+  void _connectSimulator() async {
+    setState(() => _isConnecting = true);
+    final simulator = XR18Simulator();
+    try {
+      await simulator.start();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isConnecting = false);
+      final l = AppLocalizations.of(context)!;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l.socketError(e.toString()))),
+      );
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _isConnecting = false);
+    _connect('127.0.0.1', simulator);
   }
 
   @override
@@ -268,14 +296,23 @@ class _ConnectScreenState extends State<ConnectScreen> {
         );
 
       case _DiscoveryStatus.notFound:
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.warning_amber, color: Colors.orange, size: 18),
-            const SizedBox(width: 8),
-            Text(
-              l.noMixerFound,
-              style: const TextStyle(color: Colors.orange),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.warning_amber, color: Colors.orange, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  l.noMixerFound,
+                  style: const TextStyle(color: Colors.orange),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _SimulatorCard(
+              onTap: _isConnecting ? null : _connectSimulator,
             ),
           ],
         );
@@ -295,9 +332,39 @@ class _ConnectScreenState extends State<ConnectScreen> {
                 onTap: () => _connectToConsole(c),
               ),
             ),
+            _SimulatorCard(
+              onTap: _isConnecting ? null : _connectSimulator,
+            ),
           ],
         );
     }
+  }
+}
+
+class _SimulatorCard extends StatelessWidget {
+  final VoidCallback? onTap;
+
+  const _SimulatorCard({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: const Icon(Icons.smart_toy_outlined),
+        title: Text(
+          l.simulatorMode,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(
+          l.simulatorModeSubtitle,
+          style: const TextStyle(fontSize: 12),
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: onTap,
+      ),
+    );
   }
 }
 
@@ -312,7 +379,7 @@ class _ConsoleCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        leading: const Icon(Icons.speaker),
+        leading: const RotatedBox(quarterTurns: 1, child: Icon(Icons.tune)),
         title: Text(
           console.model == 'Unknown'
               ? AppLocalizations.of(context)!.unknownModel

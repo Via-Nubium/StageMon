@@ -26,6 +26,12 @@
   "connect": "Connect",
   "@connect": {},
 
+  "simulatorMode": "Try without a mixer (simulator)",
+  "@simulatorMode": {},
+
+  "simulatorModeSubtitle": "Sample data, no real mixer needed",
+  "@simulatorModeSubtitle": {},
+
   "searching": "Searching for mixers...",
   "@searching": {},
 
@@ -241,6 +247,9 @@
 
   "mutedBadge": "MUTED",
   "@mutedBadge": {},
+
+  "simulatorBadge": "SIMULATOR",
+  "@simulatorBadge": {},
 
   "muteMuting": "Muting {label}",
   "@muteMuting": {

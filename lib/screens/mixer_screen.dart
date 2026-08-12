@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:stagemon/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/osc_service.dart';
+import '../services/xr18_simulator.dart';
 import '../widgets/custom_fader.dart';
 import '../widgets/mute_button.dart';
 import '../widgets/pan_knob.dart';
@@ -14,8 +15,9 @@ import 'group_detail_screen.dart';
 
 class MixerScreen extends StatefulWidget {
   final OscService service;
+  final XR18Simulator? simulator;
 
-  const MixerScreen({super.key, required this.service});
+  const MixerScreen({super.key, required this.service, this.simulator});
 
   @override
   State<MixerScreen> createState() => _MixerScreenState();
@@ -96,6 +98,7 @@ class _MixerScreenState extends State<MixerScreen> {
   @override
   void dispose() {
     _ctrl.dispose();
+    widget.simulator?.stop();
     super.dispose();
   }
 
@@ -534,6 +537,19 @@ class _MixerScreenState extends State<MixerScreen> {
                       l.mutedBadge,
                       style: const TextStyle(
                         color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                  if (widget.simulator != null) ...[
+                    const SizedBox(width: 8),
+                    const Icon(Icons.smart_toy_outlined, color: Colors.amber, size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      l.simulatorBadge,
+                      style: const TextStyle(
+                        color: Colors.amber,
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                       ),
