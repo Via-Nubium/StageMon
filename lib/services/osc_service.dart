@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math' show min;
 import 'package:flutter/foundation.dart';
 import 'package:osc/osc.dart';
+import 'android_network_binder.dart';
 
 class ConsoleInfo {
   final String ip;
@@ -27,7 +28,22 @@ class OscService {
   final ValueNotifier<List<double>> fxReturnLevels = ValueNotifier(List.filled(8, 0.0));
   final ValueNotifier<bool> isReceiving = ValueNotifier(false);
 
-  OscService({required this.ip, this.port = 10024});
+  // Tracks wifi recovery so the socket gets recreated *after* the process is
+  // confirmed bound to the new network — a socket opened before that bind
+  // resolves keeps following the old (possibly wrong) network.
+  bool _wifiWasAvailable = true;
+
+  OscService({required this.ip, this.port = 10024}) {
+    AndroidNetworkBinder.wifiAvailable.addListener(_onWifiAvailabilityChanged);
+  }
+
+  void _onWifiAvailabilityChanged() {
+    final nowAvailable = AndroidNetworkBinder.wifiAvailable.value;
+    if (nowAvailable && !_wifiWasAvailable) {
+      init();
+    }
+    _wifiWasAvailable = nowAvailable;
+  }
 
   // Broadcasts /xinfo and collects all XR18/X18 responses until timeout.
   static ConsoleInfo _parseXinfo(String ip, List<dynamic> args) {
@@ -106,6 +122,7 @@ class OscService {
     _socket = null;
     _socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
     _socket!.listen(_onReceive);
+    unawaited(AndroidNetworkBinder.bindToWifi());
     // Subscribe to push updates from the XR18. Must be renewed every <10s.
     _sendXremote();
     _xremoteTimer = Timer.periodic(
@@ -225,6 +242,8 @@ class OscService {
     _heartbeatTimer = null;
     _socket?.close();
     _socket = null;
+    AndroidNetworkBinder.wifiAvailable.removeListener(_onWifiAvailabilityChanged);
+    unawaited(AndroidNetworkBinder.unbind());
     channelLevels.dispose();
     busLevels.dispose();
     isReceiving.dispose();

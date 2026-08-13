@@ -3,6 +3,7 @@ import 'package:stagemon/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/osc_service.dart';
 import '../services/xr18_simulator.dart';
+import '../services/android_network_binder.dart';
 import '../widgets/custom_fader.dart';
 import '../widgets/mute_button.dart';
 import '../widgets/pan_knob.dart';
@@ -461,6 +462,31 @@ class _MixerScreenState extends State<MixerScreen> {
 
   // ── Build ─────────────────────────────────────────────────────────────────
 
+  Widget _connectionBanner({
+    required IconData icon,
+    required Color color,
+    required String text,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 16),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              text,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: color, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -577,46 +603,38 @@ class _MixerScreenState extends State<MixerScreen> {
             ),
             body: Column(
               children: [
-                ValueListenableBuilder<bool>(
-                  valueListenable: widget.service.isReceiving,
-                  builder: (_, receiving, _) {
-                    final showNoConn = !receiving;
-                    return AnimatedSize(
-                      duration: const Duration(milliseconds: 250),
-                      curve: Curves.easeInOut,
-                      child: showNoConn
-                          ? Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 7,
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons
-                                        .signal_wifi_statusbar_connected_no_internet_4,
-                                    color: Colors.amber,
-                                    size: 16,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Flexible(
-                                    child: Text(
-                                      l.noConnection,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: Colors.amber,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : const SizedBox.shrink(),
-                    );
-                  },
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeInOut,
+                  child: ValueListenableBuilder<bool>(
+                    valueListenable: AndroidNetworkBinder.wifiAvailable,
+                    builder: (_, wifiUp, _) {
+                      if (!wifiUp) {
+                        // Takes priority over the generic "no data" banner
+                        // below: it's more specific (the phone's wifi is
+                        // actually down, not just quiet) and fires
+                        // immediately instead of waiting for the OSC
+                        // heartbeat timeout.
+                        return _connectionBanner(
+                          icon: Icons.wifi_off,
+                          color: Colors.red,
+                          text: l.wifiConnectionLost,
+                        );
+                      }
+                      return ValueListenableBuilder<bool>(
+                        valueListenable: widget.service.isReceiving,
+                        builder: (_, receiving, _) {
+                          if (receiving) return const SizedBox.shrink();
+                          return _connectionBanner(
+                            icon: Icons
+                                .signal_wifi_statusbar_connected_no_internet_4,
+                            color: Colors.amber,
+                            text: l.noConnection,
+                          );
+                        },
+                      );
+                    },
+                  ),
                 ),
                 Expanded(
                   child: Row(

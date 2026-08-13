@@ -152,6 +152,9 @@
   "noConnection": "No connection to mixer",
   "@noConnection": {},
 
+  "wifiConnectionLost": "Wifi connection lost",
+  "@wifiConnectionLost": {},
+
   "snapshotNameTitle": "Snapshot name",
   "@snapshotNameTitle": {},
 
