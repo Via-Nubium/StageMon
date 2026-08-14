@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - (Android) New banner that appears immediately when the phone's wifi connection is lost, instead of waiting for the console connection to time out.
 
 ### Changed
+- Bus mute button is now taller, for easier tapping.
 - Master fader now has a dark blue background to set it apart from the other faders.
 - Aux bus picker in Settings now wraps onto multiple rows instead of a single-line segmented control, so long console names stay readable.
 - "Aux send" section header in Settings (English) renamed to "Aux bus" for clarity.

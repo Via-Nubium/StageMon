@@ -93,7 +93,7 @@ class _MuteButtonState extends State<MuteButton>
       onPointerUp: (_) => _cancel(),
       onPointerCancel: (_) => _cancel(),
       child: Container(
-        height: 28,
+        height: 42,
         margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
         decoration: BoxDecoration(
           color: active ? Colors.red : Colors.red.withValues(alpha: 0.12),
