@@ -9,11 +9,17 @@ const Color _kGroupColor = Color(0xFF00C853);
 
 class GroupFader extends StatefulWidget {
   final String label;
-  final List<int> channels;    // channel numbers 1-16
-  final List<int> fxReturns;   // FX return numbers 1-4
+  final List<int> channels; // channel numbers 1-16
+  final List<int> fxReturns; // FX return numbers 1-4
   final bool lineIn;
   final int busNum;
   final OscService service;
+  // Lets a parent screen (e.g. a pinch-to-resize gesture) veto starting a
+  // vertical drag, and be told when one starts/ends so it can do the same
+  // in reverse.
+  final bool Function()? isPinchActive;
+  final VoidCallback? onDragActiveStart;
+  final VoidCallback? onDragActiveEnd;
 
   const GroupFader({
     super.key,
@@ -23,6 +29,9 @@ class GroupFader extends StatefulWidget {
     this.lineIn = false,
     required this.busNum,
     required this.service,
+    this.isPinchActive,
+    this.onDragActiveStart,
+    this.onDragActiveEnd,
   });
 
   @override
@@ -40,15 +49,22 @@ class _GroupFaderState extends State<GroupFader> {
   Map<int, double>? _dragStartValues;
   double? _dragStartDisplayValue;
   double? _dragStartY;
+  bool _signaledDragActive = false;
+  double _dragActivationDy = 0;
+  // See custom_fader.dart's _kDragIntentThreshold: on non-overflowing
+  // content, this drag can win the gesture arena the instant a finger
+  // touches down, with zero real movement — so onDragActiveStart is
+  // deferred until genuine vertical intent is shown.
+  static const double _kDragIntentThreshold = 6.0;
 
   Set<int> _subscribedKeys = {};
   int _subscribedBus = -1;
 
   List<int> _allMemberKeys() => [
-        ...widget.channels,
-        ...widget.fxReturns.map((r) => 100 + r),
-        if (widget.lineIn) 200,
-      ];
+    ...widget.channels,
+    ...widget.fxReturns.map((r) => 100 + r),
+    if (widget.lineIn) 200,
+  ];
 
   String _oscAddressForKey(int key, int bus) {
     final b = bus.toString().padLeft(2, '0');
@@ -80,7 +96,8 @@ class _GroupFaderState extends State<GroupFader> {
   void didUpdateWidget(GroupFader old) {
     super.didUpdateWidget(old);
     final newKeys = _allMemberKeys().toSet();
-    if (widget.busNum != _subscribedBus || !setEquals(newKeys, _subscribedKeys)) {
+    if (widget.busNum != _subscribedBus ||
+        !setEquals(newKeys, _subscribedKeys)) {
       _refreshSubscriptions();
     }
   }
@@ -97,8 +114,12 @@ class _GroupFaderState extends State<GroupFader> {
           setState(() => _memberValues[key] = value.clamp(0.0, 1.0));
         }
       }
+
       _listeners[key] = listener;
-      widget.service.addListener(_oscAddressForKey(key, widget.busNum), listener);
+      widget.service.addListener(
+        _oscAddressForKey(key, widget.busNum),
+        listener,
+      );
       widget.service.request(_oscAddressForKey(key, widget.busNum));
     }
   }
@@ -107,7 +128,10 @@ class _GroupFaderState extends State<GroupFader> {
     for (final key in _subscribedKeys) {
       final l = _listeners[key];
       if (l != null) {
-        widget.service.removeListener(_oscAddressForKey(key, _subscribedBus), l);
+        widget.service.removeListener(
+          _oscAddressForKey(key, _subscribedBus),
+          l,
+        );
       }
       _listeners.remove(key);
       _throttleTimers[key]?.cancel();
@@ -123,7 +147,9 @@ class _GroupFaderState extends State<GroupFader> {
 
   void _sendMember(int key, double value) {
     _pendingValues[key] = value;
-    _throttleTimers[key] ??= Timer.periodic(const Duration(milliseconds: 50), (_) {
+    _throttleTimers[key] ??= Timer.periodic(const Duration(milliseconds: 50), (
+      _,
+    ) {
       final v = _pendingValues[key];
       if (v != null) {
         widget.service.send(_oscAddressForKey(key, widget.busNum), v);
@@ -136,22 +162,42 @@ class _GroupFaderState extends State<GroupFader> {
   }
 
   void _onDragStart(DragStartDetails d) {
+    if (widget.isPinchActive?.call() == true) return;
     _isDragging = true;
+    _signaledDragActive = false;
     _dragStartValues = Map.of(_memberValues);
     _dragStartDisplayValue = _displayValue;
     _dragStartY = d.localPosition.dy;
   }
 
   void _onDragUpdate(DragUpdateDetails d, double height) {
+    if (!_isDragging) return;
+    final dy = d.localPosition.dy - _dragStartY!;
+    if (!_signaledDragActive) {
+      if (widget.isPinchActive?.call() == true) {
+        _isDragging = false;
+        return;
+      }
+      if (dy.abs() < _kDragIntentThreshold) return;
+      _signaledDragActive = true;
+      // Lock in the offset at the exact moment of crossing, so the fader
+      // starts moving from zero right here instead of jumping by however
+      // far the finger already traveled through the dead zone.
+      _dragActivationDy = dy;
+      widget.onDragActiveStart?.call();
+    }
     const kKnobH = 26.0;
     const kPad = 2.0;
     final travel = height - kKnobH - kPad * 2;
     if (travel <= 0) return;
 
-    final dy = d.localPosition.dy - _dragStartY!;
-    final rawDisplayFloat = (_dragStartDisplayValue! - dy / travel).clamp(0.0, 1.0);
+    final effectiveDy = dy - _dragActivationDy;
+    final rawDisplayFloat = (_dragStartDisplayValue! - effectiveDy / travel)
+        .clamp(0.0, 1.0);
 
-    double dbDelta = faderToDbValue(rawDisplayFloat) - faderToDbValue(_dragStartDisplayValue!);
+    double dbDelta =
+        faderToDbValue(rawDisplayFloat) -
+        faderToDbValue(_dragStartDisplayValue!);
 
     final keys = _allMemberKeys();
     double minDbDelta = double.negativeInfinity;
@@ -177,7 +223,9 @@ class _GroupFaderState extends State<GroupFader> {
   }
 
   void _onDragEnd(DragEndDetails _) {
+    if (!_isDragging) return;
     _isDragging = false;
+    if (_signaledDragActive) widget.onDragActiveEnd?.call();
     for (final key in _allMemberKeys()) {
       final v = _pendingValues[key];
       if (v != null) {

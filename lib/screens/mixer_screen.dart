@@ -51,6 +51,32 @@ class _MixerScreenState extends State<MixerScreen> {
   List<GroupFaderConfig> _groupConfigs = GroupFaderConfig.defaultConfigs();
   final SnapshotManager _snapshots = SnapshotManager();
 
+  // ── Pinch-to-resize faders ──────────────────────────────────────────────
+  static const double _minFaderWidth = 60;
+  static const double _maxFaderWidth = 140;
+  double _faderWidth = 90;
+  final Map<int, Offset> _pinchPointers = {};
+  double? _pinchBaselineSpan;
+  final ScrollController _faderScrollController = ScrollController();
+  // Recorded when the first finger touches down, so that finger's spot in
+  // the content keeps its screen position as the fader width changes.
+  double? _pinchAnchorLocalX;
+  double? _pinchAnchorContentXInitial;
+  double _pinchWidthInitial = 90;
+  // Mutual exclusion with individual fader vertical drags: a pinch that
+  // starts while a fader is already being dragged is suppressed, and once a
+  // pinch *is* active it vetoes new fader drags (see isPinchActive below).
+  bool _pinchActive = false;
+  int _activeFaderDrags = 0;
+
+  bool _isPinchActive() => _pinchActive;
+
+  void _onFaderDragStart() => _activeFaderDrags++;
+
+  void _onFaderDragEnd() {
+    if (_activeFaderDrags > 0) _activeFaderDrags--;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -71,6 +97,13 @@ class _MixerScreenState extends State<MixerScreen> {
     final savedFxReturnsList = prefs.getStringList('selected_fx_returns');
     final savedShowLineIn = prefs.getBool('show_line_in') ?? false;
     final savedBusAlwaysVisible = prefs.getBool('bus_always_visible') ?? false;
+    final savedFaderWidth = prefs.getDouble('fader_width');
+    if (savedFaderWidth != null) {
+      setState(
+        () =>
+            _faderWidth = savedFaderWidth.clamp(_minFaderWidth, _maxFaderWidth),
+      );
+    }
     if (savedChannelsList != null) {
       setState(
         () => _selectedChannels = savedChannelsList.map(int.parse).toSet(),
@@ -100,7 +133,109 @@ class _MixerScreenState extends State<MixerScreen> {
   void dispose() {
     _ctrl.dispose();
     widget.simulator?.stop();
+    _faderScrollController.dispose();
     super.dispose();
+  }
+
+  // ── Pinch-to-resize faders ──────────────────────────────────────────────
+  //
+  // Uses raw Listener pointer tracking (not a GestureDetector/ScaleGestureRecognizer)
+  // so it never enters the gesture arena: single-finger scroll and each fader's
+  // vertical drag keep working untouched, and this only reacts once a second
+  // pointer joins. Width tracks the fingers' spread continuously but damped
+  // (a fraction of the raw delta), so it feels slow and deliberate rather
+  // than a 1:1 pinch-zoom.
+  static const double _pinchSensitivity = 0.18;
+
+  double _pinchSpan() {
+    final pts = _pinchPointers.values.toList();
+    return (pts[0].dx - pts[1].dx).abs();
+  }
+
+  void _onPinchPointerDown(PointerDownEvent e) {
+    if (_pinchPointers.isEmpty) {
+      _pinchAnchorLocalX = e.localPosition.dx;
+      _pinchAnchorContentXInitial =
+          (_faderScrollController.hasClients
+              ? _faderScrollController.offset
+              : 0) +
+          e.localPosition.dx;
+      _pinchWidthInitial = _faderWidth;
+    }
+    _pinchPointers[e.pointer] = e.position;
+    if (_pinchPointers.length == 2) {
+      // A fader is already mid-drag: let it keep the gesture, don't start
+      // resizing out from under it.
+      if (_activeFaderDrags > 0) {
+        _pinchActive = false;
+        _pinchBaselineSpan = null;
+      } else {
+        _pinchActive = true;
+        _pinchBaselineSpan = _pinchSpan();
+      }
+    } else {
+      _pinchBaselineSpan = null;
+    }
+  }
+
+  void _onPinchPointerMove(PointerMoveEvent e) {
+    if (!_pinchPointers.containsKey(e.pointer)) return;
+    _pinchPointers[e.pointer] = e.position;
+    if (_pinchPointers.length != 2 || !_pinchActive) return;
+    final span = _pinchSpan();
+    final baseline = _pinchBaselineSpan;
+    _pinchBaselineSpan = span;
+    if (baseline == null) return;
+    final spanDelta = span - baseline;
+    if (spanDelta == 0) return;
+    final newWidth = (_faderWidth + spanDelta * _pinchSensitivity).clamp(
+      _minFaderWidth,
+      _maxFaderWidth,
+    );
+    if (newWidth == _faderWidth) return;
+    setState(() => _faderWidth = newWidth);
+    _keepPinchAnchorInPlace();
+  }
+
+  // Content left of the anchor scales along with the fader width, so we
+  // recompute where that same spot now sits and jump the scroll offset to
+  // match — keeping it under the finger that first touched down.
+  void _keepPinchAnchorInPlace() {
+    final anchorLocalX = _pinchAnchorLocalX;
+    final anchorContentXInitial = _pinchAnchorContentXInitial;
+    if (anchorLocalX == null || anchorContentXInitial == null) return;
+    final targetContentX =
+        anchorContentXInitial * (_faderWidth / _pinchWidthInitial);
+    final targetOffset = targetContentX - anchorLocalX;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_faderScrollController.hasClients) return;
+      final clamped = targetOffset.clamp(
+        _faderScrollController.position.minScrollExtent,
+        _faderScrollController.position.maxScrollExtent,
+      );
+      _faderScrollController.jumpTo(clamped);
+    });
+  }
+
+  void _onPinchPointerEnd(PointerEvent e) {
+    _pinchPointers.remove(e.pointer);
+    if (_pinchPointers.length < 2) {
+      _pinchBaselineSpan = null;
+      _pinchActive = false;
+    }
+    if (_pinchPointers.isEmpty) {
+      _pinchAnchorLocalX = null;
+      _pinchAnchorContentXInitial = null;
+      // Safety net: no finger is down anywhere in the fader row, so no
+      // fader can genuinely still be mid-drag — don't let a mismatched
+      // start/end pair (Flutter's drag recognizer can reassign itself
+      // between simultaneous pointers) leave this permanently stuck above
+      // zero and lock out every future pinch.
+      _activeFaderDrags = 0;
+      SharedPreferences.getInstance().then(
+        (p) => p.setDouble('fader_width', _faderWidth),
+      );
+    }
   }
 
   // ── Navigation / dialogs ──────────────────────────────────────────────────
@@ -526,6 +661,9 @@ class _MixerScreenState extends State<MixerScreen> {
                   meterLevelRight: _ctrl.busPaired
                       ? _ctrl.busMeterLevelRight
                       : null,
+                  isPinchActive: _isPinchActive,
+                  onDragActiveStart: _onFaderDragStart,
+                  onDragActiveEnd: _onFaderDragEnd,
                 ),
               ),
               MuteButton(
@@ -570,7 +708,11 @@ class _MixerScreenState extends State<MixerScreen> {
                   ],
                   if (widget.simulator != null) ...[
                     const SizedBox(width: 8),
-                    const Icon(Icons.smart_toy_outlined, color: Colors.amber, size: 16),
+                    const Icon(
+                      Icons.smart_toy_outlined,
+                      color: Colors.amber,
+                      size: 16,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       l.simulatorBadge,
@@ -641,154 +783,186 @@ class _MixerScreenState extends State<MixerScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Expanded(
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          padding: EdgeInsets.only(
-                            left: MediaQuery.viewPaddingOf(context).left,
-                            right: busPinned
-                                ? 0
-                                : MediaQuery.viewPaddingOf(context).right,
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              ...channels.map(
-                                (ch) => SizedBox(
-                                  width: 90,
-                                  child: Column(
-                                    children: [
-                                      if (_ctrl.busPaired)
-                                        PanKnob(
-                                          key: ValueKey('pan_$ch'),
-                                          oscAddress: _ctrl.panAddress(ch),
-                                          service: widget.service,
-                                        )
-                                      else
-                                        const SizedBox(height: kPanKnobHeight),
-                                      Expanded(
-                                        child: CustomFader(
-                                          key: ValueKey(ch),
-                                          label: _ctrl.channelLabel(ch),
-                                          oscAddress: _ctrl.busAddress(ch),
-                                          service: widget.service,
-                                          meterLevel: _ctrl.meterLevels[ch - 1],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              if (_showLineIn) ...[
-                                Container(
-                                  width: 90,
-                                  color: Colors.deepOrange.withValues(
-                                    alpha: 0.04,
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      if (_ctrl.busPaired)
-                                        PanKnob(
-                                          key: const ValueKey('line_in_pan'),
-                                          oscAddress: _ctrl.lineInPanAddress(),
-                                          service: widget.service,
-                                        )
-                                      else
-                                        const SizedBox(height: kPanKnobHeight),
-                                      Expanded(
-                                        child: CustomFader(
-                                          key: const ValueKey('line_in'),
-                                          label: 'LINE',
-                                          oscAddress: _ctrl.lineInAddress(),
-                                          service: widget.service,
-                                          meterLevel: _ctrl.lineInMeterL,
-                                          meterLevelRight: _ctrl.lineInMeterR,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                              ...visibleFxReturns.map(
-                                (rtn) => SizedBox(
-                                  width: 90,
-                                  child: Column(
-                                    children: [
-                                      if (_ctrl.busPaired)
-                                        PanKnob(
-                                          key: ValueKey('fxrtn_pan_$rtn'),
-                                          oscAddress: _ctrl.fxReturnPanAddress(
-                                            rtn,
+                        child: Listener(
+                          behavior: HitTestBehavior.opaque,
+                          onPointerDown: _onPinchPointerDown,
+                          onPointerMove: _onPinchPointerMove,
+                          onPointerUp: _onPinchPointerEnd,
+                          onPointerCancel: _onPinchPointerEnd,
+                          child: SingleChildScrollView(
+                            controller: _faderScrollController,
+                            scrollDirection: Axis.horizontal,
+                            padding: EdgeInsets.only(
+                              left: MediaQuery.viewPaddingOf(context).left,
+                              right: busPinned
+                                  ? 0
+                                  : MediaQuery.viewPaddingOf(context).right,
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                ...channels.map(
+                                  (ch) => SizedBox(
+                                    width: _faderWidth,
+                                    child: Column(
+                                      children: [
+                                        if (_ctrl.busPaired)
+                                          PanKnob(
+                                            key: ValueKey('pan_$ch'),
+                                            oscAddress: _ctrl.panAddress(ch),
+                                            service: widget.service,
+                                          )
+                                        else
+                                          const SizedBox(
+                                            height: kPanKnobHeight,
                                           ),
-                                          service: widget.service,
-                                        )
-                                      else
-                                        const SizedBox(height: kPanKnobHeight),
-                                      Expanded(
-                                        child: CustomFader(
-                                          key: ValueKey('fxrtn_$rtn'),
-                                          label: 'FX $rtn',
-                                          oscAddress: _ctrl.fxReturnAddress(
-                                            rtn,
+                                        Expanded(
+                                          child: CustomFader(
+                                            key: ValueKey(ch),
+                                            label: _ctrl.channelLabel(ch),
+                                            oscAddress: _ctrl.busAddress(ch),
+                                            service: widget.service,
+                                            meterLevel:
+                                                _ctrl.meterLevels[ch - 1],
+                                            isPinchActive: _isPinchActive,
+                                            onDragActiveStart:
+                                                _onFaderDragStart,
+                                            onDragActiveEnd: _onFaderDragEnd,
                                           ),
-                                          service: widget.service,
-                                          accentColor: Colors.teal,
-                                          meterLevel:
-                                              _ctrl.fxReturnMeterL[rtn - 1],
-                                          meterLevelRight:
-                                              _ctrl.fxReturnMeterR[rtn - 1],
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              ),
-                              ...visibleGroups.map(
-                                (e) => Container(
-                                  width: 90,
-                                  color: const Color(
-                                    0xFF00C853,
-                                  ).withValues(alpha: 0.04),
-                                  child: Column(
-                                    children: [
-                                      SizedBox(
-                                        height: kPanKnobHeight,
-                                        child: Center(
-                                          child: IconButton(
-                                            icon: Transform.rotate(
-                                              angle: -1.5708,
-                                              child: const Icon(
-                                                Icons.tune,
-                                                size: 30,
+                                if (_showLineIn) ...[
+                                  Container(
+                                    width: _faderWidth,
+                                    color: Colors.deepOrange.withValues(
+                                      alpha: 0.04,
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        if (_ctrl.busPaired)
+                                          PanKnob(
+                                            key: const ValueKey('line_in_pan'),
+                                            oscAddress: _ctrl
+                                                .lineInPanAddress(),
+                                            service: widget.service,
+                                          )
+                                        else
+                                          const SizedBox(
+                                            height: kPanKnobHeight,
+                                          ),
+                                        Expanded(
+                                          child: CustomFader(
+                                            key: const ValueKey('line_in'),
+                                            label: 'LINE',
+                                            oscAddress: _ctrl.lineInAddress(),
+                                            service: widget.service,
+                                            meterLevel: _ctrl.lineInMeterL,
+                                            meterLevelRight: _ctrl.lineInMeterR,
+                                            isPinchActive: _isPinchActive,
+                                            onDragActiveStart:
+                                                _onFaderDragStart,
+                                            onDragActiveEnd: _onFaderDragEnd,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                                ...visibleFxReturns.map(
+                                  (rtn) => SizedBox(
+                                    width: _faderWidth,
+                                    child: Column(
+                                      children: [
+                                        if (_ctrl.busPaired)
+                                          PanKnob(
+                                            key: ValueKey('fxrtn_pan_$rtn'),
+                                            oscAddress: _ctrl
+                                                .fxReturnPanAddress(rtn),
+                                            service: widget.service,
+                                          )
+                                        else
+                                          const SizedBox(
+                                            height: kPanKnobHeight,
+                                          ),
+                                        Expanded(
+                                          child: CustomFader(
+                                            key: ValueKey('fxrtn_$rtn'),
+                                            label: 'FX $rtn',
+                                            oscAddress: _ctrl.fxReturnAddress(
+                                              rtn,
+                                            ),
+                                            service: widget.service,
+                                            accentColor: Colors.teal,
+                                            meterLevel:
+                                                _ctrl.fxReturnMeterL[rtn - 1],
+                                            meterLevelRight:
+                                                _ctrl.fxReturnMeterR[rtn - 1],
+                                            isPinchActive: _isPinchActive,
+                                            onDragActiveStart:
+                                                _onFaderDragStart,
+                                            onDragActiveEnd: _onFaderDragEnd,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                ...visibleGroups.map(
+                                  (e) => Container(
+                                    width: _faderWidth,
+                                    color: const Color(
+                                      0xFF00C853,
+                                    ).withValues(alpha: 0.04),
+                                    child: Column(
+                                      children: [
+                                        SizedBox(
+                                          height: kPanKnobHeight,
+                                          child: Center(
+                                            child: IconButton(
+                                              icon: Transform.rotate(
+                                                angle: -1.5708,
+                                                child: const Icon(
+                                                  Icons.tune,
+                                                  size: 30,
+                                                ),
                                               ),
+                                              color: const Color(
+                                                0xFF00C853,
+                                              ).withValues(alpha: 0.7),
+                                              tooltip: l.configureGroup(
+                                                e.value.name,
+                                              ),
+                                              onPressed: () =>
+                                                  _openGroupDetail(e.key),
                                             ),
-                                            color: const Color(
-                                              0xFF00C853,
-                                            ).withValues(alpha: 0.7),
-                                            tooltip: l.configureGroup(
-                                              e.value.name,
-                                            ),
-                                            onPressed: () =>
-                                                _openGroupDetail(e.key),
                                           ),
                                         ),
-                                      ),
-                                      Expanded(
-                                        child: GroupFader(
-                                          key: ValueKey('group_${e.key}'),
-                                          label: e.value.name,
-                                          channels: e.value.channels.toList(),
-                                          fxReturns: e.value.fxReturns.toList(),
-                                          lineIn: e.value.lineIn,
-                                          busNum: _ctrl.effectiveBus,
-                                          service: widget.service,
+                                        Expanded(
+                                          child: GroupFader(
+                                            key: ValueKey('group_${e.key}'),
+                                            label: e.value.name,
+                                            channels: e.value.channels.toList(),
+                                            fxReturns: e.value.fxReturns
+                                                .toList(),
+                                            lineIn: e.value.lineIn,
+                                            busNum: _ctrl.effectiveBus,
+                                            service: widget.service,
+                                            isPinchActive: _isPinchActive,
+                                            onDragActiveStart:
+                                                _onFaderDragStart,
+                                            onDragActiveEnd: _onFaderDragEnd,
+                                          ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              ),
-                              if (_showBusFader && !busPinned) busFader,
-                            ],
+                                if (_showBusFader && !busPinned) busFader,
+                              ],
+                            ),
                           ),
                         ),
                       ),

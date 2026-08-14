@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- Pinch with two fingers over the faders to resize them, showing more or fewer channels at once.
 - Setting to keep the Master fader pinned to the right edge of the mixer screen while the other faders scroll independently (subordinate to "Bus fader" in Settings).
 - Aux bus names configured on the console are now shown next to the bus number, in Settings and in the mixer screen title.
 - Mixer screen title turns red with a MUTED badge when the bus is muted.

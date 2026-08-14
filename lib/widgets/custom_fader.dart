@@ -15,7 +15,7 @@ double dbToFader(double db) {
   double f;
   if (db < -60.0) {
     f = (db + 90.0) / 480.0;
-  }else if (db < -30.0) {
+  } else if (db < -30.0) {
     f = (db + 70.0) / 160.0;
   } else if (db < -10.0) {
     f = (db + 50.0) / 80.0;
@@ -38,6 +38,15 @@ const double _kMainKnobH = 52.0;
 const double _kMainKnobW = 40.0;
 const double _kTrackW = 6.0;
 const double _kPad = 2.0;
+// On content that doesn't overflow its scroll view, there's no competing
+// horizontal-scroll recognizer to make Flutter wait for real movement
+// before granting this drag the gesture arena — it can "win" the instant a
+// finger touches down, with zero actual displacement. That's indistinguishable
+// from a genuine drag at onDragStart time, so onDragActiveStart is deferred
+// until the finger has actually moved vertically past this threshold —
+// mirroring the touch slop Flutter would have enforced had there been a
+// competitor. A pinch's fingers move mostly horizontally and never cross it.
+const double _kDragIntentThreshold = 6.0;
 
 class CustomFader extends StatefulWidget {
   final String label;
@@ -47,6 +56,12 @@ class CustomFader extends StatefulWidget {
   final ValueNotifier<double>? meterLevel;
   final ValueNotifier<double>? meterLevelRight;
   final bool isMain;
+  // Lets a parent screen (e.g. a pinch-to-resize gesture) veto starting a
+  // vertical drag, and be told when one starts/ends so it can do the same
+  // in reverse.
+  final bool Function()? isPinchActive;
+  final VoidCallback? onDragActiveStart;
+  final VoidCallback? onDragActiveEnd;
 
   const CustomFader({
     super.key,
@@ -57,6 +72,9 @@ class CustomFader extends StatefulWidget {
     this.meterLevel,
     this.meterLevelRight,
     this.isMain = false,
+    this.isPinchActive,
+    this.onDragActiveStart,
+    this.onDragActiveEnd,
   });
 
   @override
@@ -70,6 +88,8 @@ class _CustomFaderState extends State<CustomFader> {
   double? _pendingValue;
   double? _dragStartValue;
   double? _dragStartY;
+  bool _signaledDragActive = false;
+  double _dragActivationDy = 0;
 
   @override
   void initState() {
@@ -116,23 +136,44 @@ class _CustomFaderState extends State<CustomFader> {
   }
 
   void _onDragStart(DragStartDetails d) {
+    if (widget.isPinchActive?.call() == true) return;
     _isDragging = true;
+    _signaledDragActive = false;
     _dragStartValue = _value;
     _dragStartY = d.localPosition.dy;
   }
 
   void _onDragUpdate(DragUpdateDetails d, double height) {
+    if (!_isDragging) return;
+    final dy = d.localPosition.dy - _dragStartY!;
+    if (!_signaledDragActive) {
+      if (widget.isPinchActive?.call() == true) {
+        // A pinch won the arena for a second finger while this one hadn't
+        // shown real vertical intent yet — hand the gesture over silently.
+        _isDragging = false;
+        return;
+      }
+      if (dy.abs() < _kDragIntentThreshold) return;
+      _signaledDragActive = true;
+      // Lock in the offset at the exact moment of crossing, so the fader
+      // starts moving from zero right here instead of jumping by however
+      // far the finger already traveled through the dead zone.
+      _dragActivationDy = dy;
+      widget.onDragActiveStart?.call();
+    }
     final knobH = widget.isMain ? _kMainKnobH : _kKnobH;
     final travel = height - knobH - _kPad * 2;
     if (travel <= 0) return;
-    final dy = d.localPosition.dy - _dragStartY!;
-    final newValue = (_dragStartValue! - dy / travel).clamp(0.0, 1.0);
+    final effectiveDy = dy - _dragActivationDy;
+    final newValue = (_dragStartValue! - effectiveDy / travel).clamp(0.0, 1.0);
     setState(() => _value = newValue);
     _sendValue(newValue);
   }
 
   void _onDragEnd(DragEndDetails _) {
+    if (!_isDragging) return;
     _isDragging = false;
+    if (_signaledDragActive) widget.onDragActiveEnd?.call();
     // Flush any pending value immediately when the user lifts their finger.
     _throttleTimer?.cancel();
     _throttleTimer = null;
@@ -151,7 +192,10 @@ class _CustomFaderState extends State<CustomFader> {
           padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Text(
             widget.label,
-            style: TextStyle(color: widget.isMain ? widget.accentColor : Colors.white, fontSize: 13),
+            style: TextStyle(
+              color: widget.isMain ? widget.accentColor : Colors.white,
+              fontSize: 13,
+            ),
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -169,7 +213,13 @@ class _CustomFaderState extends State<CustomFader> {
                 onVerticalDragEnd: _onDragEnd,
                 child: RepaintBoundary(
                   child: CustomPaint(
-                    painter: FaderPainter(_value, widget.accentColor, widget.isMain, widget.meterLevel, widget.meterLevelRight),
+                    painter: FaderPainter(
+                      _value,
+                      widget.accentColor,
+                      widget.isMain,
+                      widget.meterLevel,
+                      widget.meterLevelRight,
+                    ),
                     size: Size(constraints.maxWidth, h),
                   ),
                 ),
@@ -195,14 +245,19 @@ class FaderPainter extends CustomPainter {
   final ValueNotifier<double>? _meterNotifier;
   final ValueNotifier<double>? _meterNotifierRight;
 
-  FaderPainter(this.value, this.accentColor, this.isMain,
-      [ValueNotifier<double>? meterLevel, ValueNotifier<double>? meterLevelRight])
-      : _meterNotifier = meterLevel,
-        _meterNotifierRight = meterLevelRight,
-        super(
-            repaint: meterLevel != null && meterLevelRight != null
-                ? Listenable.merge([meterLevel, meterLevelRight])
-                : meterLevel ?? meterLevelRight);
+  FaderPainter(
+    this.value,
+    this.accentColor,
+    this.isMain, [
+    ValueNotifier<double>? meterLevel,
+    ValueNotifier<double>? meterLevelRight,
+  ]) : _meterNotifier = meterLevel,
+       _meterNotifierRight = meterLevelRight,
+       super(
+         repaint: meterLevel != null && meterLevelRight != null
+             ? Listenable.merge([meterLevel, meterLevelRight])
+             : meterLevel ?? meterLevelRight,
+       );
 
   double get _effectiveKnobH => isMain ? _kMainKnobH : _kKnobH;
   double get _effectiveKnobW => isMain ? _kMainKnobW : _kKnobW;
@@ -271,11 +326,20 @@ class FaderPainter extends CustomPainter {
     }
 
     final hsl = HSLColor.fromColor(accentColor);
-    final knobLight = hsl.withLightness((hsl.lightness + 0.2).clamp(0.0, 1.0)).toColor();
-    final knobDark = hsl.withLightness((hsl.lightness - 0.2).clamp(0.0, 1.0)).toColor();
+    final knobLight = hsl
+        .withLightness((hsl.lightness + 0.2).clamp(0.0, 1.0))
+        .toColor();
+    final knobDark = hsl
+        .withLightness((hsl.lightness - 0.2).clamp(0.0, 1.0))
+        .toColor();
 
     // Track
-    final trackRect = Rect.fromLTWH(cx - _kTrackW / 2, 0, _kTrackW, size.height);
+    final trackRect = Rect.fromLTWH(
+      cx - _kTrackW / 2,
+      0,
+      _kTrackW,
+      size.height,
+    );
     canvas.drawRRect(
       RRect.fromRectAndRadius(trackRect, const Radius.circular(3)),
       Paint()
@@ -295,7 +359,9 @@ class FaderPainter extends CustomPainter {
         Offset(cx - _kTrackW / 2 - (prominent ? 7.0 : 5.5), y),
         Offset(cx + _kTrackW / 2 + (prominent ? 7.0 : 5.5), y),
         Paint()
-          ..color = const Color(0xFF2979FF).withValues(alpha: prominent ? 0.7 : 0.5)
+          ..color = const Color(
+            0xFF2979FF,
+          ).withValues(alpha: prominent ? 0.7 : 0.5)
           ..strokeWidth = prominent ? 2.0 : 1.5,
       );
     }
@@ -309,8 +375,8 @@ class FaderPainter extends CustomPainter {
     final Path knobPath;
     if (isMain) {
       // Concave (hourglass) shape: wide top/bottom, curved waist in the middle
-      const cr = 5.0;   // corner radius
-      const wi = 3.0;   // waist control-point inset → ~3 px visual indentation
+      const cr = 5.0; // corner radius
+      const wi = 3.0; // waist control-point inset → ~3 px visual indentation
       final hh = ky + kh / 2;
       final l = cx - kw / 2;
       final r = cx + kw / 2;
@@ -327,7 +393,9 @@ class FaderPainter extends CustomPainter {
         ..close();
     } else {
       knobPath = Path()
-        ..addRRect(RRect.fromRectAndRadius(knobBounds, const Radius.circular(7)));
+        ..addRRect(
+          RRect.fromRectAndRadius(knobBounds, const Radius.circular(7)),
+        );
     }
 
     // Glow
@@ -342,18 +410,19 @@ class FaderPainter extends CustomPainter {
     canvas.drawPath(
       knobPath,
       Paint()
-        ..shader = (isMain
-            ? LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [knobDark, knobLight],
-              )
-            : LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [knobLight, knobDark],
-              ))
-            .createShader(knobBounds),
+        ..shader =
+            (isMain
+                    ? LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [knobDark, knobLight],
+                      )
+                    : LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [knobLight, knobDark],
+                      ))
+                .createShader(knobBounds),
     );
 
     // Top rim highlight + bottom shadow (main knob only)
