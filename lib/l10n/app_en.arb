@@ -158,14 +158,6 @@
   "snapshotNameTitle": "Snapshot name",
   "@snapshotNameTitle": {},
 
-  "busTitleStereo": "Bus {odd}/{even} ST",
-  "@busTitleStereo": {
-    "placeholders": {
-      "odd": {"type": "int"},
-      "even": {"type": "int"}
-    }
-  },
-
   "busTitleMono": "Bus {bus}",
   "@busTitleMono": {
     "placeholders": {

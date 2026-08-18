@@ -589,13 +589,27 @@ class _MixerScreenState extends State<MixerScreen> {
       listenable: _ctrl,
       builder: (context, _) {
         final l = AppLocalizations.of(context)!;
-        final busName = _ctrl.busNames[_ctrl.effectiveBus];
-        final busTitleBase = _ctrl.busPaired
-            ? l.busTitleStereo(_ctrl.effectiveBus, _ctrl.effectiveBus + 1)
-            : l.busTitleMono(_ctrl.bus);
-        final busTitle = (busName == null || busName.isEmpty)
-            ? busTitleBase
-            : '$busTitleBase · $busName';
+        final String busTitle;
+        if (_ctrl.busPaired) {
+          final odd = _ctrl.effectiveBus;
+          final even = odd + 1;
+          final nameOdd = _ctrl.busNames[odd];
+          final nameEven = _ctrl.busNames[even];
+          final hasOdd = nameOdd != null && nameOdd.isNotEmpty;
+          final hasEven = nameEven != null && nameEven.isNotEmpty;
+          if (!hasOdd && !hasEven) {
+            busTitle = '${l.busTitleMono(odd)}/$even';
+          } else {
+            final left = hasOdd ? nameOdd : l.busTitleMono(odd);
+            final right = hasEven ? nameEven : l.busTitleMono(even);
+            busTitle = left == right ? left : '$left/$right';
+          }
+        } else {
+          final name = _ctrl.busNames[_ctrl.bus];
+          busTitle = (name == null || name.isEmpty)
+              ? l.busTitleMono(_ctrl.bus)
+              : name;
+        }
         final channels = _selectedChannels.toList()..sort();
         final visibleFxReturns = _selectedFxReturns.toList()..sort();
         final visibleGroups = _groupConfigs

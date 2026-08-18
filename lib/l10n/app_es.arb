@@ -44,7 +44,6 @@
   "noConnection": "Sin conexión con la consola",
   "wifiConnectionLost": "Se perdió la conexión wifi",
   "snapshotNameTitle": "Nombre del snapshot",
-  "busTitleStereo": "Bus {odd}/{even} ST",
   "busTitleMono": "Bus {bus}",
   "configureGroup": "Configurar {name}",
   "channelAlreadyAssigned": "Canal ya asignado",
