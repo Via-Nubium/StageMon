@@ -55,14 +55,12 @@ class _MixerScreenState extends State<MixerScreen> {
   static const double _minFaderWidth = 60;
   static const double _maxFaderWidth = 140;
   double _faderWidth = 90;
-  final Map<int, Offset> _pinchPointers = {};
-  double? _pinchBaselineSpan;
   final ScrollController _faderScrollController = ScrollController();
-  // Recorded when the first finger touches down, so that finger's spot in
-  // the content keeps its screen position as the fader width changes.
-  double? _pinchAnchorLocalX;
-  double? _pinchAnchorContentXInitial;
-  double _pinchWidthInitial = 90;
+  // Fader width at the last onScaleStart — Flutter fires this not just once
+  // but on every change in finger count, with its `scale` value reset
+  // relative to that moment. See _onScaleUpdate for why this alone (rather
+  // than also anchoring to a fixed content position) is what's needed.
+  double _scaleStartWidth = 90;
   // Mutual exclusion with individual fader vertical drags: a pinch that
   // starts while a fader is already being dragged is suppressed, and once a
   // pinch *is* active it vetoes new fader drags (see isPinchActive below).
@@ -139,103 +137,65 @@ class _MixerScreenState extends State<MixerScreen> {
 
   // ── Pinch-to-resize faders ──────────────────────────────────────────────
   //
-  // Uses raw Listener pointer tracking (not a GestureDetector/ScaleGestureRecognizer)
-  // so it never enters the gesture arena: single-finger scroll and each fader's
-  // vertical drag keep working untouched, and this only reacts once a second
-  // pointer joins. Width tracks the fingers' spread continuously but damped
-  // (a fraction of the raw delta), so it feels slow and deliberate rather
-  // than a 1:1 pinch-zoom.
-  static const double _pinchSensitivity = 0.18;
-
-  double _pinchSpan() {
-    final pts = _pinchPointers.values.toList();
-    return (pts[0].dx - pts[1].dx).abs();
+  // Backed by Flutter's own ScaleGestureRecognizer (via GestureDetector's
+  // onScale*) rather than a raw pointer listener: it's the same primitive
+  // pan/pinch apps like Google Maps use, so a finger can be added or
+  // removed mid-gesture and panning keeps going without a jump.
+  //
+  // Panning and the resize's anchor-compensation are both applied
+  // incrementally (from the previous frame's offset/width), not recomputed
+  // from a fixed gesture-start baseline. That matters specifically at the
+  // instant the finger count changes: Flutter fires onScaleEnd + a fresh
+  // onScaleStart right there, and that onStart's focal point is already the
+  // *post-movement* position — any movement coinciding with that reconfigure
+  // would be silently lost by a baseline-relative formula. focalPointDelta
+  // stays correct across that boundary, so building on it (and on the
+  // previous width, not a remembered starting width) avoids the gap.
+  //
+  // The SingleChildScrollView uses NeverScrollableScrollPhysics — all
+  // scrolling here is driven manually via jumpTo, so its own drag
+  // recognizer doesn't also compete for the same touches.
+  void _onScaleStart(ScaleStartDetails d) {
+    _scaleStartWidth = _faderWidth;
   }
 
-  void _onPinchPointerDown(PointerDownEvent e) {
-    if (_pinchPointers.isEmpty) {
-      _pinchAnchorLocalX = e.localPosition.dx;
-      _pinchAnchorContentXInitial =
-          (_faderScrollController.hasClients
-              ? _faderScrollController.offset
-              : 0) +
-          e.localPosition.dx;
-      _pinchWidthInitial = _faderWidth;
-    }
-    _pinchPointers[e.pointer] = e.position;
-    if (_pinchPointers.length == 2) {
-      // A fader is already mid-drag: let it keep the gesture, don't start
-      // resizing out from under it.
-      if (_activeFaderDrags > 0) {
-        _pinchActive = false;
-        _pinchBaselineSpan = null;
-      } else {
-        _pinchActive = true;
-        _pinchBaselineSpan = _pinchSpan();
-      }
-    } else {
-      _pinchBaselineSpan = null;
-    }
-  }
-
-  void _onPinchPointerMove(PointerMoveEvent e) {
-    if (!_pinchPointers.containsKey(e.pointer)) return;
-    _pinchPointers[e.pointer] = e.position;
-    if (_pinchPointers.length != 2 || !_pinchActive) return;
-    final span = _pinchSpan();
-    final baseline = _pinchBaselineSpan;
-    _pinchBaselineSpan = span;
-    if (baseline == null) return;
-    final spanDelta = span - baseline;
-    if (spanDelta == 0) return;
-    final newWidth = (_faderWidth + spanDelta * _pinchSensitivity).clamp(
-      _minFaderWidth,
-      _maxFaderWidth,
-    );
-    if (newWidth == _faderWidth) return;
-    setState(() => _faderWidth = newWidth);
-    _keepPinchAnchorInPlace();
-  }
-
-  // Content left of the anchor scales along with the fader width, so we
-  // recompute where that same spot now sits and jump the scroll offset to
-  // match — keeping it under the finger that first touched down.
-  void _keepPinchAnchorInPlace() {
-    final anchorLocalX = _pinchAnchorLocalX;
-    final anchorContentXInitial = _pinchAnchorContentXInitial;
-    if (anchorLocalX == null || anchorContentXInitial == null) return;
-    final targetContentX =
-        anchorContentXInitial * (_faderWidth / _pinchWidthInitial);
-    final targetOffset = targetContentX - anchorLocalX;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_faderScrollController.hasClients) return;
-      final clamped = targetOffset.clamp(
-        _faderScrollController.position.minScrollExtent,
-        _faderScrollController.position.maxScrollExtent,
+  void _onScaleUpdate(ScaleUpdateDetails d) {
+    final previousWidth = _faderWidth;
+    double newWidth = previousWidth;
+    if (d.pointerCount >= 2 && _activeFaderDrags == 0) {
+      _pinchActive = true;
+      newWidth = (_scaleStartWidth * d.scale).clamp(
+        _minFaderWidth,
+        _maxFaderWidth,
       );
-      _faderScrollController.jumpTo(clamped);
-    });
-  }
-
-  void _onPinchPointerEnd(PointerEvent e) {
-    _pinchPointers.remove(e.pointer);
-    if (_pinchPointers.length < 2) {
-      _pinchBaselineSpan = null;
+    } else {
       _pinchActive = false;
     }
-    if (_pinchPointers.isEmpty) {
-      _pinchAnchorLocalX = null;
-      _pinchAnchorContentXInitial = null;
-      // Safety net: no finger is down anywhere in the fader row, so no
-      // fader can genuinely still be mid-drag — don't let a mismatched
-      // start/end pair (Flutter's drag recognizer can reassign itself
-      // between simultaneous pointers) leave this permanently stuck above
-      // zero and lock out every future pinch.
-      _activeFaderDrags = 0;
-      SharedPreferences.getInstance().then(
-        (p) => p.setDouble('fader_width', _faderWidth),
+    if (_faderScrollController.hasClients) {
+      double offset = _faderScrollController.offset;
+      if (newWidth != previousWidth) {
+        final ratio = newWidth / previousWidth;
+        offset = ratio * offset + (ratio - 1) * d.localFocalPoint.dx;
+      }
+      offset -= d.focalPointDelta.dx;
+      final pos = _faderScrollController.position;
+      _faderScrollController.jumpTo(
+        offset.clamp(pos.minScrollExtent, pos.maxScrollExtent),
       );
     }
+    if (newWidth != _faderWidth) setState(() => _faderWidth = newWidth);
+  }
+
+  void _onScaleEnd(ScaleEndDetails d) {
+    _pinchActive = false;
+    // Safety net: Flutter's drag recognizers can reassign themselves
+    // between simultaneous pointers, so don't trust start/end pairing
+    // alone to keep this honest — a true gesture end means nothing can
+    // still be mid-drag.
+    if (d.pointerCount == 0) _activeFaderDrags = 0;
+    SharedPreferences.getInstance().then(
+      (p) => p.setDouble('fader_width', _faderWidth),
+    );
   }
 
   // ── Navigation / dialogs ──────────────────────────────────────────────────
@@ -783,14 +743,14 @@ class _MixerScreenState extends State<MixerScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Expanded(
-                        child: Listener(
+                        child: GestureDetector(
                           behavior: HitTestBehavior.opaque,
-                          onPointerDown: _onPinchPointerDown,
-                          onPointerMove: _onPinchPointerMove,
-                          onPointerUp: _onPinchPointerEnd,
-                          onPointerCancel: _onPinchPointerEnd,
+                          onScaleStart: _onScaleStart,
+                          onScaleUpdate: _onScaleUpdate,
+                          onScaleEnd: _onScaleEnd,
                           child: SingleChildScrollView(
                             controller: _faderScrollController,
+                            physics: const NeverScrollableScrollPhysics(),
                             scrollDirection: Axis.horizontal,
                             padding: EdgeInsets.only(
                               left: MediaQuery.viewPaddingOf(context).left,
