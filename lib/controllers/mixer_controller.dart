@@ -9,7 +9,7 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _loadChannelNames();
     _loadBusNames();
-    _trackBusLink();
+    _trackBusLinks();
     _setupFaderListeners(effectiveBus);
     _trackLineInFader();
     _trackBusFader();
@@ -23,15 +23,16 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
 
   // ── Exposed state ─────────────────────────────────────────────────────────
   int _bus = 1;
-  bool _busPaired = false;
   int _registeredBus = -1;
 
   int get bus => _bus;
-  bool get busPaired => _busPaired;
-  int get effectiveBus => (_busPaired && _bus.isEven) ? _bus - 1 : _bus;
+  int _pairBaseOf(int busNum) => busNum.isOdd ? busNum : busNum - 1;
+  bool get busPaired => busLinked[_pairBaseOf(_bus)] ?? false;
+  int get effectiveBus => (busPaired && _bus.isEven) ? _bus - 1 : _bus;
 
   final Map<int, String> channelNames = {};
   final Map<int, String> busNames = {};
+  final Map<int, bool> busLinked = {1: false, 3: false, 5: false};
   final Map<int, double> faderValues = {};
   final Map<int, double> panValues = {};
   final Map<int, double> fxReturnValues = {};
@@ -65,21 +66,23 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
   void Function(dynamic)? _lineInPanListener;
   void Function(dynamic)? _busFaderListener;
   void Function(dynamic)? _busMuteListener;
-  void Function(dynamic)? _busLinkListener;
+  final Map<int, void Function(dynamic)> _busLinkListeners = {};
 
   // ── App lifecycle ─────────────────────────────────────────────────────────
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) async {
     if (state == AppLifecycleState.resumed) {
       await service.init();
-      service.request(_busLinkAddress());
+      for (final odd in [1, 3, 5]) {
+        service.request(_busLinkAddress(odd));
+      }
       for (int ch = 1; ch <= 16; ch++) {
         service.request(busAddress(ch));
-        if (_busPaired) service.request(panAddress(ch));
+        if (busPaired) service.request(panAddress(ch));
       }
       for (int rtn = 1; rtn <= 4; rtn++) {
         service.request(fxReturnAddress(rtn));
-        if (_busPaired) service.request(fxReturnPanAddress(rtn));
+        if (busPaired) service.request(fxReturnPanAddress(rtn));
       }
       service.request(lineInAddress());
       service.request(lineInPanAddress());
@@ -89,32 +92,37 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   // ── Bus link ──────────────────────────────────────────────────────────────
+  // Buses pair up as fixed stereo pairs (1-2, 3-4, 5-6); link state is
+  // tracked for all three pairs at once so both the mixer (current bus) and
+  // the bus selector (all buses) can reflect it.
 
-  String _busLinkAddress() {
-    final odd = _bus.isOdd ? _bus : _bus - 1;
-    return '/config/buslink/$odd-${odd + 1}';
-  }
+  String _busLinkAddress(int odd) => '/config/buslink/$odd-${odd + 1}';
 
-  void _trackBusLink() {
-    final address = _busLinkAddress();
-    void listener(dynamic value) {
-      final paired = value == 1 || value == true;
-      _onBusPairingChanged(paired);
+  void _trackBusLinks() {
+    for (final odd in [1, 3, 5]) {
+      final address = _busLinkAddress(odd);
+      void listener(dynamic value) {
+        final paired = value == 1 || value == true;
+        _onBusLinkChanged(odd, paired);
+      }
+      _busLinkListeners[odd] = listener;
+      service.addListener(address, listener);
+      service.request(address);
     }
-    _busLinkListener = listener;
-    service.addListener(address, listener);
-    service.request(address);
   }
 
-  void _onBusPairingChanged(bool newPaired) {
-    if (_busPaired == newPaired) return;
-    final oldEb = effectiveBus;
-    _busPaired = newPaired;
-    final newEb = effectiveBus;
-    if (oldEb != newEb) {
-      _setupFaderListeners(newEb, oldBus: oldEb);
-      _reRegisterLineInFader(oldBus: oldEb, newBus: newEb);
-      _reRegisterBusFader(oldBus: oldEb, newBus: newEb);
+  void _onBusLinkChanged(int odd, bool newPaired) {
+    if (busLinked[odd] == newPaired) return;
+    final isCurrentPair = odd == _pairBaseOf(_bus);
+    final oldEb = isCurrentPair ? effectiveBus : null;
+    busLinked[odd] = newPaired;
+    if (isCurrentPair) {
+      final newEb = effectiveBus;
+      if (oldEb != newEb) {
+        _setupFaderListeners(newEb, oldBus: oldEb);
+        _reRegisterLineInFader(oldBus: oldEb!, newBus: newEb);
+        _reRegisterBusFader(oldBus: oldEb, newBus: newEb);
+      }
     }
     if (!_disposed) notifyListeners();
   }
@@ -188,10 +196,6 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
   void changeBus(int newBus) {
     if (_bus == newBus) return;
 
-    if (_busLinkListener != null) {
-      service.removeListener(_busLinkAddress(), _busLinkListener!);
-      _busLinkListener = null;
-    }
     final oldEb = effectiveBus;
     for (int ch = 1; ch <= 16; ch++) {
       final fl = _faderListeners[ch];
@@ -227,7 +231,6 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
     }
 
     _bus = newBus;
-    _busPaired = false;
     _registeredBus = -1;
     faderValues.clear();
     panValues.clear();
@@ -238,7 +241,6 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
     busFaderValue = null;
     busMuted = null;
 
-    _trackBusLink();
     _setupFaderListeners(effectiveBus);
     _trackLineInFader();
     _trackBusFader();
@@ -317,7 +319,7 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
     final alphaL = targetL > currentL ? 0.7 : 0.12;
     busMeterLevel.value = currentL + (targetL - currentL) * alphaL;
 
-    if (_busPaired) {
+    if (busPaired) {
       final idxR = idxL + 1;
       final targetR = idxR < levels.length ? levels[idxR] : 0.0;
       final currentR = busMeterLevelRight.value;
@@ -479,8 +481,8 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
     if (_busMuteListener != null) {
       service.removeListener(busMuteAddress(), _busMuteListener!);
     }
-    if (_busLinkListener != null) {
-      service.removeListener(_busLinkAddress(), _busLinkListener!);
+    for (final entry in _busLinkListeners.entries) {
+      service.removeListener(_busLinkAddress(entry.key), entry.value);
     }
     service.channelLevels.removeListener(_onChannelMeters);
     service.busLevels.removeListener(_onBusMeters);

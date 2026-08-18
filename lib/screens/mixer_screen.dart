@@ -241,6 +241,7 @@ class _MixerScreenState extends State<MixerScreen> {
               selectedChannels: _selectedChannels,
               channelNames: _ctrl.channelNames,
               busNames: _ctrl.busNames,
+              busLinked: _ctrl.busLinked,
               showBusFader: _showBusFader,
               bus: _ctrl.bus,
               groupConfigs: _groupConfigs,

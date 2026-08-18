@@ -8,6 +8,7 @@ class SettingsScreen extends StatefulWidget {
   final Set<int> selectedChannels;
   final Map<int, String> channelNames;
   final Map<int, String> busNames;
+  final Map<int, bool> busLinked;
   final bool showBusFader;
   final int bus;
   final List<GroupFaderConfig> groupConfigs;
@@ -20,6 +21,7 @@ class SettingsScreen extends StatefulWidget {
     required this.selectedChannels,
     required this.channelNames,
     required this.busNames,
+    required this.busLinked,
     required this.showBusFader,
     required this.bus,
     required this.groupConfigs,
@@ -65,6 +67,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _disconnect() {
     Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
+  Widget _busChip(int busNum, {int? pairedWith}) {
+    final label = pairedWith == null
+        ? _busLabel(busNum)
+        : _pairLabel(busNum, pairedWith);
+    final selected = _bus == busNum || (pairedWith != null && _bus == pairedWith);
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (on) {
+        if (on) setState(() => _bus = busNum);
+      },
+    );
+  }
+
+  String _busLabel(int busNum) {
+    final name = widget.busNames[busNum];
+    return (name == null || name.isEmpty) ? '$busNum' : '$busNum · $name';
+  }
+
+  String _pairLabel(int odd, int even) {
+    final nameOdd = widget.busNames[odd];
+    final nameEven = widget.busNames[even];
+    final hasOdd = nameOdd != null && nameOdd.isNotEmpty;
+    final hasEven = nameEven != null && nameEven.isNotEmpty;
+    final base = '$odd/$even';
+    if (!hasOdd && !hasEven) return base;
+    if (hasOdd && hasEven) {
+      return nameOdd == nameEven ? '$base · $nameOdd' : '$base · $nameOdd/$nameEven';
+    }
+    return '$base · ${hasOdd ? nameOdd : nameEven}';
   }
 
   Future<void> _openGroupConfig(int index) async {
@@ -123,20 +157,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: List.generate(6, (i) {
-                    final busNum = i + 1;
-                    final name = widget.busNames[busNum];
-                    final label = (name == null || name.isEmpty)
-                        ? '$busNum'
-                        : '$busNum · $name';
-                    return ChoiceChip(
-                      label: Text(label),
-                      selected: _bus == busNum,
-                      onSelected: (on) {
-                        if (on) setState(() => _bus = busNum);
-                      },
-                    );
-                  }),
+                  children: [
+                    for (final odd in [1, 3, 5])
+                      if (widget.busLinked[odd] ?? false)
+                        _busChip(odd, pairedWith: odd + 1)
+                      else ...[_busChip(odd), _busChip(odd + 1)],
+                  ],
                 ),
               ),
               const Divider(height: 32),
