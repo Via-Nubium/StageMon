@@ -17,9 +17,14 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
     service.busLevels.addListener(_onBusMeters);
     service.lineInLevels.addListener(_onLineInMeters);
     service.fxReturnLevels.addListener(_onFxReturnMeters);
+    service.isReceiving.addListener(_onReceivingChanged);
   }
 
   bool _disposed = false;
+
+  // Optimistic like AndroidNetworkBinder.wifiAvailable — avoids treating the
+  // very first connection (false→true) as a reconnection needing a refresh.
+  bool _wasReceiving = true;
 
   // ── Exposed state ─────────────────────────────────────────────────────────
   int _bus = 1;
@@ -73,22 +78,44 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) async {
     if (state == AppLifecycleState.resumed) {
       await service.init();
-      for (final odd in [1, 3, 5]) {
-        service.request(_busLinkAddress(odd));
-      }
-      for (int ch = 1; ch <= 16; ch++) {
-        service.request(busAddress(ch));
-        if (busPaired) service.request(panAddress(ch));
-      }
-      for (int rtn = 1; rtn <= 4; rtn++) {
-        service.request(fxReturnAddress(rtn));
-        if (busPaired) service.request(fxReturnPanAddress(rtn));
-      }
-      service.request(lineInAddress());
-      service.request(lineInPanAddress());
-      service.request(busFaderAddress());
-      service.request(busMuteAddress());
     }
+  }
+
+  // Fires on every false→true transition of the heartbeat, which covers all
+  // reconnection paths with one hook: app resume (service.init() always
+  // forces isReceiving false first), Android wifi loss/recovery (same, via
+  // OscService._onWifiAvailabilityChanged), and plain network blips where
+  // nothing else in the app noticed a disconnection happened.
+  void _onReceivingChanged() {
+    final now = service.isReceiving.value;
+    if (!_wasReceiving && now) {
+      _refreshAll();
+    }
+    _wasReceiving = now;
+  }
+
+  // Re-requests every tracked parameter so nothing changed by another
+  // controller while we were disconnected is missed.
+  void _refreshAll() {
+    for (final odd in [1, 3, 5]) {
+      service.request(_busLinkAddress(odd));
+    }
+    for (int ch = 1; ch <= 16; ch++) {
+      service.request(busAddress(ch));
+      if (busPaired) service.request(panAddress(ch));
+      service.request('/ch/${ch.toString().padLeft(2, '0')}/config/name');
+    }
+    for (int rtn = 1; rtn <= 4; rtn++) {
+      service.request(fxReturnAddress(rtn));
+      if (busPaired) service.request(fxReturnPanAddress(rtn));
+    }
+    for (int busNum = 1; busNum <= 6; busNum++) {
+      service.request(_buildBusNameAddress(busNum));
+    }
+    service.request(lineInAddress());
+    service.request(lineInPanAddress());
+    service.request(busFaderAddress());
+    service.request(busMuteAddress());
   }
 
   // ── Bus link ──────────────────────────────────────────────────────────────
@@ -488,6 +515,7 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
     service.busLevels.removeListener(_onBusMeters);
     service.lineInLevels.removeListener(_onLineInMeters);
     service.fxReturnLevels.removeListener(_onFxReturnMeters);
+    service.isReceiving.removeListener(_onReceivingChanged);
     for (final n in meterLevels) {
       n.dispose();
     }
