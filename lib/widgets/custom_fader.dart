@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../models/channel_color.dart';
 import '../services/osc_service.dart';
 
 double faderToDbValue(double f) {
@@ -56,6 +57,9 @@ class CustomFader extends StatefulWidget {
   final ValueNotifier<double>? meterLevel;
   final ValueNotifier<double>? meterLevelRight;
   final bool isMain;
+  // Index into kChannelColors for this channel's name background/text —
+  // null means no override (name renders plain, as before).
+  final int? nameColorIndex;
   // Lets a parent screen (e.g. a pinch-to-resize gesture) veto starting a
   // vertical drag, and be told when one starts/ends so it can do the same
   // in reverse.
@@ -72,6 +76,7 @@ class CustomFader extends StatefulWidget {
     this.meterLevel,
     this.meterLevelRight,
     this.isMain = false,
+    this.nameColorIndex,
     this.isPinchActive,
     this.onDragActiveStart,
     this.onDragActiveEnd,
@@ -190,15 +195,37 @@ class _CustomFaderState extends State<CustomFader> {
         const SizedBox(height: 8),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Text(
-            widget.label,
-            style: TextStyle(
-              color: widget.isMain ? widget.accentColor : Colors.white,
-              fontSize: 13,
-            ),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          child: Builder(
+            builder: (context) {
+              final nameColor = widget.nameColorIndex != null
+                  ? channelColorByIndex(widget.nameColorIndex!)
+                  : null;
+              final text = Text(
+                widget.label,
+                style: TextStyle(
+                  color: nameColor != null
+                      ? nameColor.foreground
+                      : (widget.isMain ? widget.accentColor : Colors.white),
+                  fontSize: 13,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              );
+              if (nameColor == null) return text;
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 1,
+                ),
+                decoration: channelColorFill(
+                  nameColor,
+                  radius: 4,
+                  borderWidth: 1.4,
+                ),
+                child: text,
+              );
+            },
           ),
         ),
         const SizedBox(height: 4),

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:stagemon/l10n/app_localizations.dart';
 import '../models/group_fader_config.dart';
+import '../models/channel_color.dart';
+import '../widgets/channel_color_sheet.dart';
+import '../widgets/color_handle_badge.dart';
 import 'about_screen.dart';
 import 'group_config_screen.dart';
 
@@ -15,6 +18,12 @@ class SettingsScreen extends StatefulWidget {
   final Set<int> selectedFxReturns;
   final bool showLineIn;
   final bool busAlwaysVisible;
+  final Map<int, int?> channelColors;
+  final int? lineInColor;
+  final Map<int, int?> fxReturnColors;
+  final Map<int, int> consoleChannelColors;
+  final int? consoleLineInColor;
+  final Map<int, int> consoleFxReturnColors;
 
   const SettingsScreen({
     super.key,
@@ -28,6 +37,12 @@ class SettingsScreen extends StatefulWidget {
     required this.selectedFxReturns,
     required this.showLineIn,
     required this.busAlwaysVisible,
+    required this.channelColors,
+    required this.lineInColor,
+    required this.fxReturnColors,
+    required this.consoleChannelColors,
+    required this.consoleLineInColor,
+    required this.consoleFxReturnColors,
   });
 
   @override
@@ -42,6 +57,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late Set<int> _selectedFxReturns;
   late bool _showLineIn;
   late bool _busAlwaysVisible;
+  late Map<int, int?> _channelColors;
+  late int? _lineInColor;
+  late Map<int, int?> _fxReturnColors;
 
   @override
   void initState() {
@@ -53,6 +71,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _selectedFxReturns = Set.of(widget.selectedFxReturns);
     _showLineIn = widget.showLineIn;
     _busAlwaysVisible = widget.busAlwaysVisible;
+    _channelColors = Map.of(widget.channelColors);
+    _lineInColor = widget.lineInColor;
+    _fxReturnColors = Map.of(widget.fxReturnColors);
   }
 
   void _pop() => Navigator.pop(context, (
@@ -63,7 +84,85 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _selectedFxReturns,
     _showLineIn,
     _busAlwaysVisible,
+    _channelColors,
+    _lineInColor,
+    _fxReturnColors,
   ));
+
+  // Channels, then LINE, then FX returns — the order the </> arrows in the
+  // color sheet step through, independent of which of them are visible.
+  List<ColorableFader> _colorableFaders() => [
+    for (var ch = 1; ch <= 16; ch++)
+      ColorableFader(
+        label: widget.channelNames[ch] ?? 'Ch ${ch.toString().padLeft(2, '0')}',
+        colorIndex: _channelColors[ch],
+        onChanged: (index) => setState(() => _channelColors[ch] = index),
+        consoleColorIndex: widget.consoleChannelColors[ch],
+      ),
+    ColorableFader(
+      label: 'LINE',
+      colorIndex: _lineInColor,
+      onChanged: (index) => setState(() => _lineInColor = index),
+      consoleColorIndex: widget.consoleLineInColor,
+    ),
+    for (var rtn = 1; rtn <= 4; rtn++)
+      ColorableFader(
+        label: 'FX $rtn',
+        colorIndex: _fxReturnColors[rtn],
+        onChanged: (index) => setState(() => _fxReturnColors[rtn] = index),
+        consoleColorIndex: widget.consoleFxReturnColors[rtn],
+      ),
+  ];
+
+  void _openColorSheet(int position) {
+    showChannelColorSheet(
+      context: context,
+      items: _colorableFaders(),
+      initialPosition: position,
+    );
+  }
+
+  Widget _colorableChip({
+    required String label,
+    required bool selected,
+    required ValueChanged<bool> onSelected,
+    required int? colorIndex,
+    required int? consoleColorIndex,
+    required VoidCallback onLongPress,
+  }) {
+    final color = channelColorByIndex(colorIndex ?? consoleColorIndex ?? 0);
+    return GestureDetector(
+      onLongPress: onLongPress,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Theme(
+            data: Theme.of(context).copyWith(
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: FilterChip(
+              label: Text(label),
+              selected: selected,
+              onSelected: onSelected,
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 2,
+            child: IgnorePointer(
+              child: Center(
+                child: ColorHandleBadge(
+                  background: color.background,
+                  foreground: color.foreground,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   void _disconnect() {
     Navigator.of(context).popUntil((route) => route.isFirst);
@@ -187,18 +286,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       final label =
                           widget.channelNames[ch] ??
                           'Ch ${ch.toString().padLeft(2, '0')}';
-                      return FilterChip(
-                        label: Text(label),
+                      return _colorableChip(
+                        label: label,
                         selected: _selected.contains(ch),
                         onSelected: (on) => setState(() {
                           on ? _selected.add(ch) : _selected.remove(ch);
                         }),
+                        colorIndex: _channelColors[ch],
+                        consoleColorIndex: widget.consoleChannelColors[ch],
+                        onLongPress: () => _openColorSheet(ch - 1),
                       );
                     }),
-                    FilterChip(
-                      label: const Text('LINE'),
+                    _colorableChip(
+                      label: 'LINE',
                       selected: _showLineIn,
                       onSelected: (on) => setState(() => _showLineIn = on),
+                      colorIndex: _lineInColor,
+                      consoleColorIndex: widget.consoleLineInColor,
+                      onLongPress: () => _openColorSheet(16),
                     ),
                   ],
                 ),
@@ -221,14 +326,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   runSpacing: 8,
                   children: List.generate(4, (i) {
                     final rtn = i + 1;
-                    return FilterChip(
-                      label: Text('FX $rtn'),
+                    return _colorableChip(
+                      label: 'FX $rtn',
                       selected: _selectedFxReturns.contains(rtn),
                       onSelected: (on) => setState(() {
                         on
                             ? _selectedFxReturns.add(rtn)
                             : _selectedFxReturns.remove(rtn);
                       }),
+                      colorIndex: _fxReturnColors[rtn],
+                      consoleColorIndex: widget.consoleFxReturnColors[rtn],
+                      onLongPress: () => _openColorSheet(16 + rtn),
                     );
                   }),
                 ),

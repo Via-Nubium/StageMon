@@ -79,5 +79,26 @@
 
   "noConsoleAtIpTitle": "Sin respuesta",
   "noConsoleAtIpBody": "No hubo respuesta en {ip}. Se enviarán los comandos OSC igual, pero los resultados pueden ser impredecibles.",
-  "tryAnyway": "Intentar igual"
+  "tryAnyway": "Intentar igual",
+
+  "consoleColorOption": "Consola",
+  "syncColorFromMixer": "Obtener el color de la consola",
+  "chooseColorManually": "Elegir color manualmente",
+
+  "colorOff": "Negro",
+  "colorRd": "Rojo",
+  "colorGn": "Verde",
+  "colorYe": "Amarillo",
+  "colorBl": "Azul",
+  "colorMg": "Magenta",
+  "colorCy": "Cian",
+  "colorWh": "Blanco",
+  "colorOffi": "Negro Inv",
+  "colorRdi": "Rojo Inv",
+  "colorGni": "Verde Inv",
+  "colorYei": "Am Inv",
+  "colorBli": "Azul Inv",
+  "colorMgi": "Mag Inv",
+  "colorCyi": "Cian Inv",
+  "colorWhi": "Blanco Inv"
 }

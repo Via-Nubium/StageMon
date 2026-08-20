@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- Long-press a channel, LINE, or FX return chip in Settings to give it a color — the same 16 colors the mixer itself uses for its scribble strips. Arrows let you step through every channel, LINE, and FX return without closing the menu. Leave it set to "Console" and the color automatically matches whatever that channel already has on the mixer. The chosen color shows on the chip in Settings and colors the channel's name on the mixer screen.
 - Pinch with two fingers over the faders to resize them, showing more or fewer channels at once.
 - Setting to keep the Master fader pinned to the right edge of the mixer screen while the other faders scroll independently (subordinate to "Bus fader" in Settings).
 - Aux bus names configured on the mixer are now shown next to the bus number, in Settings and in the mixer screen title.

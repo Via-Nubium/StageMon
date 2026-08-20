@@ -293,5 +293,47 @@
   },
 
   "tryAnyway": "Try anyway",
-  "@tryAnyway": {}
+  "@tryAnyway": {},
+
+  "consoleColorOption": "Console",
+  "@consoleColorOption": {},
+
+  "syncColorFromMixer": "Sync color from mixer",
+  "@syncColorFromMixer": {},
+
+  "chooseColorManually": "Choose color manually",
+  "@chooseColorManually": {},
+
+  "colorOff": "Black",
+  "@colorOff": {},
+  "colorRd": "Red",
+  "@colorRd": {},
+  "colorGn": "Green",
+  "@colorGn": {},
+  "colorYe": "Yellow",
+  "@colorYe": {},
+  "colorBl": "Blue",
+  "@colorBl": {},
+  "colorMg": "Magenta",
+  "@colorMg": {},
+  "colorCy": "Cyan",
+  "@colorCy": {},
+  "colorWh": "White",
+  "@colorWh": {},
+  "colorOffi": "Black Inv",
+  "@colorOffi": {},
+  "colorRdi": "Red Inv",
+  "@colorRdi": {},
+  "colorGni": "Green Inv",
+  "@colorGni": {},
+  "colorYei": "Yellow Inv",
+  "@colorYei": {},
+  "colorBli": "Blue Inv",
+  "@colorBli": {},
+  "colorMgi": "Magenta Inv",
+  "@colorMgi": {},
+  "colorCyi": "Cyan Inv",
+  "@colorCyi": {},
+  "colorWhi": "White Inv",
+  "@colorWhi": {}
 }

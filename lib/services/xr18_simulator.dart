@@ -24,6 +24,11 @@ class XR18Simulator {
     0.66, 0.45, 0.40, 0.35, 0.42, 0.20, 0.20, 0.0,
   ];
 
+  // XR18 /config/color values: 0-7 base colors, 8-15 the same 8 inverted.
+  static const _channelColorValue = 0; // OFF, all 16 channels
+  static const _rtnColorValue = 2; // GN, all 4 FX returns
+  static const _lineInColor = 3; // YE
+
   RawDatagramSocket? _socket;
   Timer? _meterTimer;
   DateTime? _startTime;
@@ -67,13 +72,16 @@ class XR18Simulator {
         _state[_chLevel(ch, bus)] = _channelLevels[ch - 1];
         _state[_chPan(ch, bus)] = 0.5;
       }
+      _state['/ch/${_pad2(ch)}/config/color'] = _channelColorValue;
     }
     for (int rtn = 1; rtn <= 4; rtn++) {
       for (int bus = 1; bus <= 6; bus++) {
         _state[_rtnLevel(rtn, bus)] = 0.3;
         _state[_rtnPan(rtn, bus)] = 0.5;
       }
+      _state['/rtn/$rtn/config/color'] = _rtnColorValue;
     }
+    _state['/rtn/aux/config/color'] = _lineInColor;
     for (int bus = 1; bus <= 6; bus++) {
       _state[_lineInLevel(bus)] = 0.3;
       _state[_lineInPan(bus)] = 0.5;

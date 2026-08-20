@@ -12,6 +12,12 @@ class GroupDetailScreen extends StatefulWidget {
   final int busNum;
   final bool busPaired;
   final Map<int, String> channelNames;
+  final Map<int, int?> channelColors;
+  final int? lineInColor;
+  final Map<int, int?> fxReturnColors;
+  final Map<int, int> consoleChannelColors;
+  final int? consoleLineInColor;
+  final Map<int, int> consoleFxReturnColors;
   final OscService service;
   final List<ValueNotifier<double>> meterLevels;        // 16 channel meters
   final List<ValueNotifier<double>> fxReturnMeterL;     // 4 FX return left meters
@@ -27,6 +33,12 @@ class GroupDetailScreen extends StatefulWidget {
     required this.busNum,
     required this.busPaired,
     required this.channelNames,
+    required this.channelColors,
+    required this.lineInColor,
+    required this.fxReturnColors,
+    required this.consoleChannelColors,
+    required this.consoleLineInColor,
+    required this.consoleFxReturnColors,
     required this.service,
     required this.meterLevels,
     required this.fxReturnMeterL,
@@ -86,6 +98,21 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     if (key <= 16) return null;
     if (key < 200) return Colors.teal;
     return Colors.deepOrange;
+  }
+
+  int _memberNameColorIndex(int key) {
+    if (key <= 16) {
+      return widget.channelColors[key] ??
+          widget.consoleChannelColors[key] ??
+          0;
+    }
+    if (key < 200) {
+      final rtn = key - 100;
+      return widget.fxReturnColors[rtn] ??
+          widget.consoleFxReturnColors[rtn] ??
+          0;
+    }
+    return widget.lineInColor ?? widget.consoleLineInColor ?? 0;
   }
 
   ValueNotifier<double> _memberMeterL(int key) {
@@ -184,6 +211,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             oscAddress: _memberAddress(key),
             service: widget.service,
             accentColor: accentColor ?? const Color(0xFF2979FF),
+            nameColorIndex: _memberNameColorIndex(key),
             meterLevel: _memberMeterL(key),
             meterLevelRight: _memberMeterR(key),
           ),
