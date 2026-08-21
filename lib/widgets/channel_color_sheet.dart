@@ -116,7 +116,7 @@ class _ChannelColorSheetState extends State<_ChannelColorSheet> {
                       child: _NamePlate(
                         text: item.label.toUpperCase(),
                         color: preview,
-                        height: 44,
+                        height: 34,
                       ),
                     ),
                   ),
@@ -222,17 +222,34 @@ class _NamePlate extends StatelessWidget {
     return Container(
       height: height,
       alignment: Alignment.center,
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-      decoration: channelColorFill(color),
-      child: Text(
-        text,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: color.foreground,
-          fontSize: 15,
-          fontWeight: FontWeight.w600,
-        ),
+      padding: const EdgeInsets.symmetric(horizontal: 9),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 12,
+            height: 12,
+            margin: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color.background,
+              border: Border.all(color: color.foreground, width: 1.5),
+            ),
+          ),
+          Flexible(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFFECEDEF),
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -254,54 +271,60 @@ class _Swatch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fill = channelColorFill(color);
+    final content = Container(
+      height: 44,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: selected
+            ? const [
+                BoxShadow(color: Colors.white, spreadRadius: 5),
+                BoxShadow(color: Color(0xFF17181C), spreadRadius: 2.5),
+              ]
+            : null,
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Container(
+              decoration: fill,
+              alignment: Alignment.center,
+              child: Text(
+                text,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: color.foreground,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+          if (selected)
+            Positioned(
+              top: 3,
+              right: 3,
+              child: Icon(
+                Icons.check_circle,
+                size: 16,
+                color: color.foreground,
+              ),
+            ),
+        ],
+      ),
+    );
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(10),
-        child: Container(
-          height: 44,
-          padding: const EdgeInsets.all(2),
-          decoration: selected
-              ? BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: const Color(0xFF2979FF),
-                    width: 2,
-                  ),
-                )
-              : null,
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: Container(
-                  decoration: fill,
-                  alignment: Alignment.center,
-                  child: Text(
-                    text,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: color.foreground,
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-              if (selected)
-                Positioned(
-                  top: 3,
-                  right: 3,
-                  child: Icon(
-                    Icons.check_circle,
-                    size: 13,
-                    color: color.foreground,
-                  ),
-                ),
-            ],
-          ),
-        ),
+        child: selected
+            ? Transform.translate(
+                offset: const Offset(0, -1),
+                child: Transform.scale(scale: 1.04, child: content),
+              )
+            : content,
       ),
     );
   }
