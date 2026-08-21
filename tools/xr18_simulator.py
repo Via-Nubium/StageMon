@@ -12,6 +12,10 @@ Interactive commands (type after the '> ' prompt):
     set <addr> <val>             Set any OSC address and push to connected app
     link <1|2|3> <0|1>          Toggle stereo bus pairing (1→1-2, 2→3-4, 3→5-6)
     name <ch> <name>             Set a channel name (ch = 1-16)
+    color ch <1-16> <0-15>       Set a channel's scribble-strip color
+    color fx <1-4> <0-15>        Set an FX return's color
+    color line <0-15>            Set Line In's color
+    color bus <1-6> <0-15>       Set an AUX bus's color
     mute aux <bus> <0|1>         Set AUX bus on/off (/bus/{bus}/mix/on) (0=muted, 1=unmuted)
     lr                           Show Main LR fader and mute state
     lr fader <0.0-1.0>           Set Main LR fader level and push
@@ -35,6 +39,10 @@ from typing import Any, Dict, List, Tuple
 PORT = 10024
 FIRMWARE = "1.18-sim"
 DEFAULT_MODEL = "XR18"
+
+# /config/color values 0-15: 8 base colors, then the same 8 inverted.
+COLOR_NAMES = ['OFF', 'RD', 'GN', 'YE', 'BL', 'MG', 'CY', 'WH',
+               'OFFi', 'RDi', 'GNi', 'YEi', 'BLi', 'MGi', 'CYi', 'WHi']
 XREMOTE_TTL = 10.0   # seconds before /xremote registration expires
 METER_TTL   = 15.0   # seconds before /meters subscription expires
 METER_INTERVAL = 0.1 # seconds between /meters/1 pushes (~10 Hz)
@@ -156,15 +164,18 @@ class XR18Simulator:
             for ch in range(1, 17):
                 cs = str(ch).zfill(2)
                 self._state[f'/ch/{cs}/config/name'] = f'Ch {cs}'
+                self._state[f'/ch/{cs}/config/color'] = 0  # OFF
                 for bus in range(1, 7):
                     bs = str(bus).zfill(2)
                     self._state[f'/ch/{cs}/mix/{bs}/level'] = 0.0
                     self._state[f'/ch/{cs}/mix/{bs}/pan'] = 0.5
                     self._state[f'/ch/{cs}/mix/{bs}/grpon'] = 1  # 1 = send on (unmuted)
             for rtn in range(1, 5):
+                self._state[f'/rtn/{rtn}/config/color'] = 2  # GN
                 for bus in range(1, 7):
                     bs = str(bus).zfill(2)
                     self._state[f'/rtn/{rtn}/mix/{bs}/grpon'] = 1
+            self._state['/rtn/aux/config/color'] = 3  # YE, Line In
             for bus in range(1, 7):
                 bs = str(bus).zfill(2)
                 self._state[f'/rtn/aux/mix/{bs}/grpon'] = 1  # Line In
@@ -176,6 +187,7 @@ class XR18Simulator:
                 self._state[f'/bus/{bus}/mix/fader'] = 0.75  # ~unity (0 dB)
                 self._state[f'/bus/{bus}/mix/on'] = 1         # unmuted
                 self._state[f'/bus/{bus}/config/name'] = _sample_bus_names[bus - 1]
+                self._state[f'/bus/{bus}/config/color'] = 3  # YE
             self._state['/lr/mix/fader'] = 0.75  # ~unity (0 dB)
             self._state['/lr/mix/on'] = 1         # unmuted
             self._state['/config/buslink/1-2'] = 0
@@ -385,7 +397,7 @@ class XR18Simulator:
         print(f'XR18 Simulator — {ip}:{self._port}')
         print(f'Name: {self._device_name}  |  Model: {self._model}')
         print()
-        print('Commands: state [bus] | set <addr> <val> | link <1-3> <0/1> | name <ch> <name> | busname <bus 1-6> <name> | lr [fader x | mute x] | meters [on|off] | snap [load N | name N x] | clients | q')
+        print('Commands: state [bus] | set <addr> <val> | link <1-3> <0/1> | name <ch> <name> | busname <bus 1-6> <name> | color [ch|fx|bus] <n> <0-15> | color line <0-15> | lr [fader x | mute x] | meters [on|off] | snap [load N | name N x] | clients | q')
         print()
 
         recv_thread = threading.Thread(target=self._recv_loop, daemon=True)
@@ -533,6 +545,73 @@ class XR18Simulator:
                     self._state[addr] = name
                 self._push_to_xremote(addr, name)
                 print(f'  {addr} = {name!r}  (pushed)')
+
+            elif cmd == 'color':
+                rest_parts = line.split()
+                sub = rest_parts[1].lower() if len(rest_parts) > 1 else ''
+                usage = ('  Usage: color ch <1-16> <0-15> | color fx <1-4> <0-15> | '
+                          'color line <0-15> | color bus <1-6> <0-15>')
+                addr = None
+                if sub == 'ch':
+                    if len(rest_parts) < 4:
+                        print(usage)
+                        continue
+                    try:
+                        ch, val_i = int(rest_parts[2]), int(rest_parts[3])
+                    except ValueError:
+                        print('  Both arguments must be integers.')
+                        continue
+                    if not 1 <= ch <= 16 or not 0 <= val_i <= 15:
+                        print('  ch must be 1-16, color must be 0-15')
+                        continue
+                    addr = f'/ch/{str(ch).zfill(2)}/config/color'
+                elif sub == 'fx':
+                    if len(rest_parts) < 4:
+                        print(usage)
+                        continue
+                    try:
+                        rtn, val_i = int(rest_parts[2]), int(rest_parts[3])
+                    except ValueError:
+                        print('  Both arguments must be integers.')
+                        continue
+                    if not 1 <= rtn <= 4 or not 0 <= val_i <= 15:
+                        print('  fx must be 1-4, color must be 0-15')
+                        continue
+                    addr = f'/rtn/{rtn}/config/color'
+                elif sub == 'line':
+                    if len(rest_parts) < 3:
+                        print(usage)
+                        continue
+                    try:
+                        val_i = int(rest_parts[2])
+                    except ValueError:
+                        print('  Value must be an integer 0-15')
+                        continue
+                    if not 0 <= val_i <= 15:
+                        print('  color must be 0-15')
+                        continue
+                    addr = '/rtn/aux/config/color'
+                elif sub == 'bus':
+                    if len(rest_parts) < 4:
+                        print(usage)
+                        continue
+                    try:
+                        bus_n, val_i = int(rest_parts[2]), int(rest_parts[3])
+                    except ValueError:
+                        print('  Both arguments must be integers.')
+                        continue
+                    if not 1 <= bus_n <= 6 or not 0 <= val_i <= 15:
+                        print('  bus must be 1-6, color must be 0-15')
+                        continue
+                    addr = f'/bus/{bus_n}/config/color'
+                else:
+                    print(usage)
+                    continue
+                with self._state_lock:
+                    self._state[addr] = val_i
+                self._push_to_xremote(addr, val_i)
+                color_name = COLOR_NAMES[val_i] if 0 <= val_i < len(COLOR_NAMES) else '?'
+                print(f'  {addr} = {val_i}  ({color_name}, pushed)')
 
             elif cmd == 'mute':
                 rest_parts = line.split()
@@ -692,6 +771,10 @@ class XR18Simulator:
                 print('  link <1|2|3> <0|1>          Toggle stereo pairing for bus pair')
                 print('  name <ch> <name>             Set channel name (ch = 1-16)')
                 print('  busname <bus 1-6> <name>     Set AUX bus name and push to app')
+                print('  color ch <1-16> <0-15>       Set a channel\'s scribble-strip color')
+                print('  color fx <1-4> <0-15>        Set an FX return\'s color')
+                print('  color line <0-15>            Set Line In\'s color')
+                print('  color bus <1-6> <0-15>       Set an AUX bus\'s color')
                 print('  mute aux <bus> <0|1>         Set AUX bus on/off (0=muted, 1=unmuted)')
                 print('  lr                           Show Main LR fader and mute state')
                 print('  lr fader <0.0-1.0>           Set Main LR fader level and push')
