@@ -66,18 +66,8 @@
   "configureChannels": "Configure channels",
   "@configureChannels": {},
 
-  "busFaderVisibility": "Bus fader",
+  "busFaderVisibility": "Bus master fader",
   "@busFaderVisibility": {},
-
-  "busFaderLabel": "Bus {bus}",
-  "@busFaderLabel": {
-    "placeholders": {
-      "bus": {"type": "int"}
-    }
-  },
-
-  "busFaderVolume": "Volume of the selected bus",
-  "@busFaderVolume": {},
 
   "busAlwaysVisible": "Always visible",
   "@busAlwaysVisible": {},
@@ -192,9 +182,6 @@
 
   "groupChannels": "Group channels",
   "@groupChannels": {},
-
-  "orangeChannelsNote": "Orange inputs already belong to another group.",
-  "@orangeChannelsNote": {},
 
   "orangeInputsNote": "Orange inputs already belong to another group.",
   "@orangeInputsNote": {},

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:stagemon/l10n/app_localizations.dart';
 import '../models/group_fader_config.dart';
 import '../models/channel_color.dart';
+import '../utils/bus_title.dart';
+import '../widgets/bus_picker_sheet.dart';
 import '../widgets/channel_color_sheet.dart';
 import '../widgets/color_handle_badge.dart';
 import 'about_screen.dart';
@@ -24,6 +26,8 @@ class SettingsScreen extends StatefulWidget {
   final Map<int, int> consoleChannelColors;
   final int? consoleLineInColor;
   final Map<int, int> consoleFxReturnColors;
+  final Map<int, int?> busColors;
+  final Map<int, int> consoleBusColors;
 
   const SettingsScreen({
     super.key,
@@ -43,6 +47,8 @@ class SettingsScreen extends StatefulWidget {
     required this.consoleChannelColors,
     required this.consoleLineInColor,
     required this.consoleFxReturnColors,
+    required this.busColors,
+    required this.consoleBusColors,
   });
 
   @override
@@ -60,6 +66,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late Map<int, int?> _channelColors;
   late int? _lineInColor;
   late Map<int, int?> _fxReturnColors;
+  late Map<int, int?> _busColors;
 
   @override
   void initState() {
@@ -74,6 +81,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _channelColors = Map.of(widget.channelColors);
     _lineInColor = widget.lineInColor;
     _fxReturnColors = Map.of(widget.fxReturnColors);
+    _busColors = Map.of(widget.busColors);
+  }
+
+  // The bus number a color is stored under: the pair's base when the
+  // current bus is linked, otherwise the bus itself.
+  int get _busColorKey => busColorKey(bus: _bus, busLinked: widget.busLinked);
+
+  // Console color only — no override — to stay consistent with what the
+  // bus picker sheet shows for every bus.
+  Widget _busColorDot() {
+    final color = channelColorByIndex(widget.consoleBusColors[_busColorKey] ?? 0);
+    return ColorDot(background: color.background, foreground: color.foreground);
   }
 
   void _pop() => Navigator.pop(context, (
@@ -87,10 +106,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _channelColors,
     _lineInColor,
     _fxReturnColors,
+    _busColors,
   ));
 
-  // Channels, then LINE, then FX returns — the order the </> arrows in the
-  // color sheet step through, independent of which of them are visible.
+  // Channels, then LINE, then FX returns, then the aux bus — the order the
+  // </> arrows in the color sheet step through, independent of which of
+  // them are visible.
   List<ColorableFader> _colorableFaders() => [
     for (var ch = 1; ch <= 16; ch++)
       ColorableFader(
@@ -112,6 +133,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         onChanged: (index) => setState(() => _fxReturnColors[rtn] = index),
         consoleColorIndex: widget.consoleFxReturnColors[rtn],
       ),
+    ColorableFader(
+      label: _busFaderChipLabel(),
+      colorIndex: _busColors[_busColorKey],
+      onChanged: (index) => setState(() => _busColors[_busColorKey] = index),
+      consoleColorIndex: widget.consoleBusColors[_busColorKey],
+    ),
   ];
 
   void _openColorSheet(int position) {
@@ -128,7 +155,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required ValueChanged<bool> onSelected,
     required int? colorIndex,
     required int? consoleColorIndex,
-    required VoidCallback onLongPress,
+    VoidCallback? onLongPress,
   }) {
     final color = channelColorByIndex(colorIndex ?? consoleColorIndex ?? 0);
     return GestureDetector(
@@ -141,7 +168,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
             child: FilterChip(
-              label: Text(label),
+              label: Text(label, overflow: TextOverflow.ellipsis, maxLines: 1),
               selected: selected,
               onSelected: onSelected,
             ),
@@ -168,23 +195,115 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
-  Widget _busChip(int busNum, {int? pairedWith}) {
-    final label = pairedWith == null
-        ? _busLabel(busNum)
-        : _pairLabel(busNum, pairedWith);
-    final selected = _bus == busNum || (pairedWith != null && _bus == pairedWith);
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (on) {
-        if (on) setState(() => _bus = busNum);
-      },
+  List<BusOption> _busOptions() => [
+    for (final odd in [1, 3, 5])
+      if (widget.busLinked[odd] ?? false)
+        BusOption(
+          value: odd,
+          label: _pairLabel(odd, odd + 1),
+          matches: [odd, odd + 1],
+          colorIndex: widget.consoleBusColors[odd] ?? 0,
+        )
+      else ...[
+        BusOption(
+          value: odd,
+          label: _busLabel(odd),
+          matches: [odd],
+          colorIndex: widget.consoleBusColors[odd] ?? 0,
+        ),
+        BusOption(
+          value: odd + 1,
+          label: _busLabel(odd + 1),
+          matches: [odd + 1],
+          colorIndex: widget.consoleBusColors[odd + 1] ?? 0,
+        ),
+      ],
+  ];
+
+  String _currentBusLabel() {
+    for (final o in _busOptions()) {
+      if (o.matches.contains(_bus)) return o.label;
+    }
+    return _busLabel(_bus);
+  }
+
+  void _openBusPicker() {
+    showBusPickerSheet(
+      context: context,
+      options: _busOptions(),
+      selected: _bus,
+      onSelected: (v) => setState(() => _bus = v),
     );
   }
 
+  // Deliberately not a FilterChip: this pins the bus fader in place, it
+  // doesn't show/hide it, so it needs to read as a different kind of
+  // control from the visibility chips (different shape, different accent
+  // color that isn't one of the 16 console colors).
+  Widget _pinChip() {
+    final l = AppLocalizations.of(context)!;
+    const accent = Color(0xFFE3A73B);
+    final enabled = _showBusFader;
+    final active = _busAlwaysVisible && enabled;
+    return Opacity(
+      opacity: enabled ? 1 : 0.4,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: enabled
+              ? () => setState(() => _busAlwaysVisible = !_busAlwaysVisible)
+              : null,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            height: 32,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: active
+                  ? accent.withValues(alpha: 0.18)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: active ? accent : const Color(0xFF3A3E47),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  active ? Icons.push_pin : Icons.push_pin_outlined,
+                  size: 15,
+                  color: active ? accent : const Color(0xFF9AA3AE),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  l.busAlwaysVisible,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: active ? accent : const Color(0xFF9AA3AE),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _busFaderChipLabel() => busFaderTitle(
+    bus: _bus,
+    busLinked: widget.busLinked,
+    busNames: widget.busNames,
+    l: AppLocalizations.of(context)!,
+  );
+
   String _busLabel(int busNum) {
     final name = widget.busNames[busNum];
-    return (name == null || name.isEmpty) ? '$busNum' : '$busNum · $name';
+    if (name == null || name.isEmpty) {
+      return AppLocalizations.of(context)!.busTitleMono(busNum);
+    }
+    return '$busNum · $name';
   }
 
   String _pairLabel(int odd, int even) {
@@ -192,8 +311,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final nameEven = widget.busNames[even];
     final hasOdd = nameOdd != null && nameOdd.isNotEmpty;
     final hasEven = nameEven != null && nameEven.isNotEmpty;
+    if (!hasOdd && !hasEven) {
+      return '${AppLocalizations.of(context)!.busTitleMono(odd)}/$even';
+    }
     final base = '$odd/$even';
-    if (!hasOdd && !hasEven) return base;
     if (hasOdd && hasEven) {
       return nameOdd == nameEven ? '$base · $nameOdd' : '$base · $nameOdd/$nameEven';
     }
@@ -253,15 +374,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final odd in [1, 3, 5])
-                      if (widget.busLinked[odd] ?? false)
-                        _busChip(odd, pairedWith: odd + 1)
-                      else ...[_busChip(odd), _busChip(odd + 1)],
-                  ],
+                child: ListTile(
+                  onTap: _openBusPicker,
+                  tileColor: const Color(0xFF16181D),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: const BorderSide(color: Color(0xFF2C3038)),
+                  ),
+                  leading: _busColorDot(),
+                  title: Text(_currentBusLabel()),
+                  trailing: const Icon(Icons.chevron_right),
                 ),
               ),
               const Divider(height: 32),
@@ -394,7 +516,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               }),
               const Divider(height: 32),
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                 child: Text(
                   l.busFaderVisibility,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -404,30 +526,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: SwitchListTile(
-                  value: _showBusFader,
-                  onChanged: (on) => setState(() => _showBusFader = on),
-                  title: Text(
-                    widget.busNames[_bus] == null || widget.busNames[_bus]!.isEmpty
-                        ? l.busFaderLabel(_bus)
-                        : '${l.busFaderLabel(_bus)} · ${widget.busNames[_bus]}',
-                  ),
-                  subtitle: Text(
-                    l.busFaderVolume,
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(left: 24, right: 8),
-                child: SwitchListTile(
-                  value: _busAlwaysVisible,
-                  onChanged: _showBusFader
-                      ? (on) => setState(() => _busAlwaysVisible = on)
-                      : null,
-                  dense: true,
-                  title: Text(l.busAlwaysVisible),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: _colorableChip(
+                        label: 'MASTER',
+                        selected: _showBusFader,
+                        onSelected: (on) =>
+                            setState(() => _showBusFader = on),
+                        colorIndex: _busColors[_busColorKey],
+                        consoleColorIndex: widget.consoleBusColors[_busColorKey],
+                        onLongPress: () =>
+                            _openColorSheet(_colorableFaders().length - 1),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    _pinChip(),
+                  ],
                 ),
               ),
               const Divider(height: 32),

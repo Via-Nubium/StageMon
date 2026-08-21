@@ -111,11 +111,13 @@ class _ChannelColorSheetState extends State<_ChannelColorSheet> {
                 ),
                 Expanded(
                   child: Center(
-                    child: _NamePlate(
-                      text: item.label.toUpperCase(),
-                      color: preview,
-                      width: 84,
-                      height: 44,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 220),
+                      child: _NamePlate(
+                        text: item.label.toUpperCase(),
+                        color: preview,
+                        height: 44,
+                      ),
                     ),
                   ),
                 ),
@@ -211,20 +213,13 @@ class _StepArrow extends StatelessWidget {
 class _NamePlate extends StatelessWidget {
   final String text;
   final ChannelColorOption color;
-  final double? width;
   final double? height;
 
-  const _NamePlate({
-    required this.text,
-    required this.color,
-    this.width,
-    this.height,
-  });
+  const _NamePlate({required this.text, required this.color, this.height});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: width,
       height: height,
       alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),

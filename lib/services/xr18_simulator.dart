@@ -28,6 +28,7 @@ class XR18Simulator {
   static const _channelColorValue = 0; // OFF, all 16 channels
   static const _rtnColorValue = 2; // GN, all 4 FX returns
   static const _lineInColor = 3; // YE
+  static const _busColorValue = 3; // YE, all 6 buses
 
   RawDatagramSocket? _socket;
   Timer? _meterTimer;
@@ -87,6 +88,7 @@ class XR18Simulator {
       _state[_lineInPan(bus)] = 0.5;
       _state[_busFader(bus)] = 0.75;
       _state[_busMute(bus)] = 1;
+      _state['/bus/$bus/config/color'] = _busColorValue;
     }
     // Bus 1-2 stereo-paired by default so the demo shows pan knobs / stereo behavior.
     _state['/config/buslink/1-2'] = 1;

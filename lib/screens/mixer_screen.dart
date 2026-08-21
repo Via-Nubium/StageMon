@@ -12,6 +12,7 @@ import '../widgets/group_fader.dart';
 import '../models/snapshot_manager.dart';
 import '../models/group_fader_config.dart';
 import '../controllers/mixer_controller.dart';
+import '../utils/bus_title.dart';
 import 'settings_screen.dart';
 import 'group_detail_screen.dart';
 
@@ -52,6 +53,7 @@ class _MixerScreenState extends State<MixerScreen> {
   Map<int, int?> _channelColors = {};
   int? _lineInColor;
   Map<int, int?> _fxReturnColors = {};
+  Map<int, int?> _busColors = {};
   List<GroupFaderConfig> _groupConfigs = GroupFaderConfig.defaultConfigs();
   final SnapshotManager _snapshots = SnapshotManager();
 
@@ -103,6 +105,7 @@ class _MixerScreenState extends State<MixerScreen> {
     final savedChannelColors = prefs.getString('channel_colors_v1');
     final savedLineInColor = prefs.getString('line_in_color_v1');
     final savedFxReturnColors = prefs.getString('fx_return_colors_v1');
+    final savedBusColors = prefs.getString('bus_colors_v1');
     if (savedFaderWidth != null) {
       setState(
         () =>
@@ -152,6 +155,16 @@ class _MixerScreenState extends State<MixerScreen> {
             jsonDecode(savedFxReturnColors) as Map<String, dynamic>;
         setState(
           () => _fxReturnColors = decoded.map(
+            (k, v) => MapEntry(int.parse(k), v as int?),
+          ),
+        );
+      } catch (_) {}
+    }
+    if (savedBusColors != null) {
+      try {
+        final decoded = jsonDecode(savedBusColors) as Map<String, dynamic>;
+        setState(
+          () => _busColors = decoded.map(
             (k, v) => MapEntry(int.parse(k), v as int?),
           ),
         );
@@ -283,6 +296,7 @@ class _MixerScreenState extends State<MixerScreen> {
             Map<int, int?>,
             int?,
             Map<int, int?>,
+            Map<int, int?>,
           )
         >(
           context,
@@ -304,6 +318,8 @@ class _MixerScreenState extends State<MixerScreen> {
               consoleChannelColors: _ctrl.consoleChannelColors,
               consoleLineInColor: _ctrl.consoleLineInColor,
               consoleFxReturnColors: _ctrl.consoleFxReturnColors,
+              busColors: _busColors,
+              consoleBusColors: _ctrl.consoleBusColors,
             ),
           ),
         );
@@ -319,6 +335,7 @@ class _MixerScreenState extends State<MixerScreen> {
         _channelColors = result.$8;
         _lineInColor = result.$9;
         _fxReturnColors = result.$10;
+        _busColors = result.$11;
       });
       SharedPreferences.getInstance().then((p) {
         p.setStringList(
@@ -341,6 +358,10 @@ class _MixerScreenState extends State<MixerScreen> {
         p.setString(
           'fx_return_colors_v1',
           jsonEncode(result.$10.map((k, v) => MapEntry(k.toString(), v))),
+        );
+        p.setString(
+          'bus_colors_v1',
+          jsonEncode(result.$11.map((k, v) => MapEntry(k.toString(), v))),
         );
       });
     }
@@ -657,27 +678,20 @@ class _MixerScreenState extends State<MixerScreen> {
       listenable: _ctrl,
       builder: (context, _) {
         final l = AppLocalizations.of(context)!;
-        final String busTitle;
-        if (_ctrl.busPaired) {
-          final odd = _ctrl.effectiveBus;
-          final even = odd + 1;
-          final nameOdd = _ctrl.busNames[odd];
-          final nameEven = _ctrl.busNames[even];
-          final hasOdd = nameOdd != null && nameOdd.isNotEmpty;
-          final hasEven = nameEven != null && nameEven.isNotEmpty;
-          if (!hasOdd && !hasEven) {
-            busTitle = '${l.busTitleMono(odd)}/$even';
-          } else {
-            final left = hasOdd ? nameOdd : l.busTitleMono(odd);
-            final right = hasEven ? nameEven : l.busTitleMono(even);
-            busTitle = left == right ? left : '$left/$right';
-          }
-        } else {
-          final name = _ctrl.busNames[_ctrl.bus];
-          busTitle = (name == null || name.isEmpty)
-              ? l.busTitleMono(_ctrl.bus)
-              : name;
-        }
+        final busTitle = busFaderTitle(
+          bus: _ctrl.bus,
+          busLinked: _ctrl.busLinked,
+          busNames: _ctrl.busNames,
+          l: l,
+        );
+        final busFaderColorKey = busColorKey(
+          bus: _ctrl.bus,
+          busLinked: _ctrl.busLinked,
+        );
+        final busFaderColorIndex =
+            _busColors[busFaderColorKey] ??
+            _ctrl.consoleBusColors[busFaderColorKey] ??
+            0;
         final channels = _selectedChannels.toList()..sort();
         final visibleFxReturns = _selectedFxReturns.toList()..sort();
         final visibleGroups = _groupConfigs
@@ -695,10 +709,11 @@ class _MixerScreenState extends State<MixerScreen> {
               Expanded(
                 child: CustomFader(
                   key: const ValueKey('bus'),
-                  label: 'BUS',
+                  label: 'MASTER',
                   oscAddress: _ctrl.busFaderAddress(),
                   service: widget.service,
                   accentColor: Colors.amber,
+                  nameColorIndex: busFaderColorIndex,
                   isMain: true,
                   meterLevel: _ctrl.busMeterLevel,
                   meterLevelRight: _ctrl.busPaired

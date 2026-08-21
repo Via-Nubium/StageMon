@@ -12,6 +12,7 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
     _loadChannelColors();
     _loadLineInColor();
     _loadFxReturnColors();
+    _loadBusColors();
     _trackBusLinks();
     _setupFaderListeners(effectiveBus);
     _trackLineInFader();
@@ -45,6 +46,9 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
   final Map<int, int> consoleChannelColors = {};
   final Map<int, int> consoleFxReturnColors = {};
   int? consoleLineInColor;
+  // All 6 buses, like busNames — the bus picker needs every color up
+  // front, not just the currently active bus.
+  final Map<int, int> consoleBusColors = {};
   final Map<int, bool> busLinked = {1: false, 3: false, 5: false};
   final Map<int, double> faderValues = {};
   final Map<int, double> panValues = {};
@@ -74,6 +78,7 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
   final Map<int, void Function(dynamic)> _colorListeners = {};
   final Map<int, void Function(dynamic)> _fxReturnColorListeners = {};
   void Function(dynamic)? _lineInColorListener;
+  final Map<int, void Function(dynamic)> _busColorListeners = {};
   final Map<int, void Function(dynamic)> _faderListeners = {};
   final Map<int, void Function(dynamic)> _panListeners = {};
   final Map<int, void Function(dynamic)> _fxReturnListeners = {};
@@ -124,6 +129,7 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
     }
     for (int busNum = 1; busNum <= 6; busNum++) {
       service.request(_buildBusNameAddress(busNum));
+      service.request(_busColorAddress(busNum));
     }
     service.request(lineInAddress());
     service.request(lineInPanAddress());
@@ -467,6 +473,20 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
+  void _loadBusColors() {
+    for (int busNum = 1; busNum <= 6; busNum++) {
+      final address = _busColorAddress(busNum);
+      void listener(dynamic value) {
+        if (value is! int || _disposed) return;
+        consoleBusColors[busNum] = value.clamp(0, 15);
+        notifyListeners();
+      }
+      _busColorListeners[busNum] = listener;
+      service.addListener(address, listener);
+      service.request(address);
+    }
+  }
+
   // ── OSC address helpers ───────────────────────────────────────────────────
 
   String _buildBusAddress(int channel, int busNum) {
@@ -511,6 +531,7 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
       '/ch/${channel.toString().padLeft(2, '0')}/config/color';
   String _fxReturnColorAddress(int rtn) => '/rtn/$rtn/config/color';
   static const String _lineInColorAddress = '/rtn/aux/config/color';
+  String _busColorAddress(int busNum) => '/bus/$busNum/config/color';
 
   String busAddress(int channel) => _buildBusAddress(channel, effectiveBus);
   String busFaderAddress() => _buildBusFaderAddress(effectiveBus);
@@ -541,6 +562,9 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
     }
     for (final entry in _busNameListeners.entries) {
       service.removeListener(_buildBusNameAddress(entry.key), entry.value);
+    }
+    for (final entry in _busColorListeners.entries) {
+      service.removeListener(_busColorAddress(entry.key), entry.value);
     }
     for (final entry in _colorListeners.entries) {
       service.removeListener(_channelColorAddress(entry.key), entry.value);
