@@ -11,12 +11,18 @@ class ColorableFader {
   // What the console itself currently reports for this fader — null if it
   // hasn't answered yet. Drives the console-sync swatch's own color.
   final int? consoleColorIndex;
+  // False for faders with no console counterpart (e.g. group faders): the
+  // console-sync swatch stays visible but disabled, so the sheet's height
+  // doesn't jump as the </> arrows step across faders that do and don't
+  // support it.
+  final bool allowConsoleSync;
 
   const ColorableFader({
     required this.label,
     required this.colorIndex,
     required this.onChanged,
     required this.consoleColorIndex,
+    this.allowConsoleSync = true,
   });
 }
 
@@ -139,6 +145,7 @@ class _ChannelColorSheetState extends State<_ChannelColorSheet> {
                     text: l.consoleColorOption,
                     color: consolePreview,
                     selected: selected == null,
+                    enabled: item.allowConsoleSync,
                     onTap: () => _select(null),
                   ),
                 ),
@@ -146,8 +153,10 @@ class _ChannelColorSheetState extends State<_ChannelColorSheet> {
                 Expanded(
                   child: Text(
                     l.syncColorFromMixer,
-                    style: const TextStyle(
-                      color: Color(0xFF8B93A1),
+                    style: TextStyle(
+                      color: item.allowConsoleSync
+                          ? const Color(0xFF8B93A1)
+                          : const Color(0xFF4A4F58),
                       fontSize: 12,
                     ),
                   ),
@@ -260,12 +269,14 @@ class _Swatch extends StatelessWidget {
   final ChannelColorOption color;
   final bool selected;
   final VoidCallback onTap;
+  final bool enabled;
 
   const _Swatch({
     required this.text,
     required this.color,
     required this.selected,
     required this.onTap,
+    this.enabled = true,
   });
 
   @override
@@ -314,17 +325,20 @@ class _Swatch extends StatelessWidget {
       ),
     );
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: selected
-            ? Transform.translate(
-                offset: const Offset(0, -1),
-                child: Transform.scale(scale: 1.04, child: content),
-              )
-            : content,
+    return Opacity(
+      opacity: enabled ? 1 : 0.35,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: enabled ? onTap : null,
+          borderRadius: BorderRadius.circular(10),
+          child: selected
+              ? Transform.translate(
+                  offset: const Offset(0, -1),
+                  child: Transform.scale(scale: 1.04, child: content),
+                )
+              : content,
+        ),
       ),
     );
   }

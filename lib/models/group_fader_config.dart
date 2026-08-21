@@ -6,6 +6,12 @@ class GroupFaderConfig {
   final Set<int> channels;   // 1-16
   final Set<int> fxReturns;  // 1-4
   final bool lineIn;
+  // A group is a local combo of channels, not a real console fader, so
+  // there's no console color to sync from — just a manually picked one.
+  // Defaults to Green Inv, the color the fixed group-fader green used to be.
+  final int colorIndex;
+
+  static const int defaultColorIndex = 10; // GNi — Verde Inv
 
   const GroupFaderConfig({
     required this.name,
@@ -13,6 +19,7 @@ class GroupFaderConfig {
     required this.channels,
     this.fxReturns = const {},
     this.lineIn = false,
+    this.colorIndex = defaultColorIndex,
   });
 
   int get memberCount => channels.length + fxReturns.length + (lineIn ? 1 : 0);
@@ -23,12 +30,14 @@ class GroupFaderConfig {
     Set<int>? channels,
     Set<int>? fxReturns,
     bool? lineIn,
+    int? colorIndex,
   }) => GroupFaderConfig(
         name: name ?? this.name,
         visible: visible ?? this.visible,
         channels: channels ?? this.channels,
         fxReturns: fxReturns ?? this.fxReturns,
         lineIn: lineIn ?? this.lineIn,
+        colorIndex: colorIndex ?? this.colorIndex,
       );
 
   Map<String, dynamic> toJson() => {
@@ -37,6 +46,7 @@ class GroupFaderConfig {
         'channels': channels.toList(),
         'fxReturns': fxReturns.toList(),
         'lineIn': lineIn,
+        'colorIndex': colorIndex,
       };
 
   factory GroupFaderConfig.fromJson(Map<String, dynamic> json) => GroupFaderConfig(
@@ -47,6 +57,7 @@ class GroupFaderConfig {
             ? Set<int>.from((json['fxReturns'] as List).map((e) => e as int))
             : {},
         lineIn: json['lineIn'] as bool? ?? false,
+        colorIndex: json['colorIndex'] as int? ?? defaultColorIndex,
       );
 
   static List<GroupFaderConfig> defaultConfigs() => [

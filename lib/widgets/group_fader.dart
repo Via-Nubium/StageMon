@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../models/channel_color.dart';
 import '../services/osc_service.dart';
 import 'custom_fader.dart';
 
@@ -14,6 +15,8 @@ class GroupFader extends StatefulWidget {
   final bool lineIn;
   final int busNum;
   final OscService service;
+  // Index into kChannelColors for this group's name background/text.
+  final int nameColorIndex;
   // Lets a parent screen (e.g. a pinch-to-resize gesture) veto starting a
   // vertical drag, and be told when one starts/ends so it can do the same
   // in reverse.
@@ -29,6 +32,7 @@ class GroupFader extends StatefulWidget {
     this.lineIn = false,
     required this.busNum,
     required this.service,
+    required this.nameColorIndex,
     this.isPinchActive,
     this.onDragActiveStart,
     this.onDragActiveEnd,
@@ -246,16 +250,32 @@ class _GroupFaderState extends State<GroupFader> {
         const SizedBox(height: 8),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Text(
-            widget.label,
-            style: const TextStyle(
-              color: _kGroupColor,
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          child: Builder(
+            builder: (context) {
+              final nameColor = channelColorByIndex(widget.nameColorIndex);
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 1,
+                ),
+                decoration: channelColorFill(
+                  nameColor,
+                  radius: 4,
+                  borderWidth: 1.4,
+                ),
+                child: Text(
+                  widget.label,
+                  style: TextStyle(
+                    color: nameColor.foreground,
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              );
+            },
           ),
         ),
         const SizedBox(height: 4),

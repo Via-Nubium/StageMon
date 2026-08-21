@@ -1017,6 +1017,7 @@ class _MixerScreenState extends State<MixerScreen> {
                                             lineIn: e.value.lineIn,
                                             busNum: _ctrl.effectiveBus,
                                             service: widget.service,
+                                            nameColorIndex: e.value.colorIndex,
                                             isPinchActive: _isPinchActive,
                                             onDragActiveStart:
                                                 _onFaderDragStart,

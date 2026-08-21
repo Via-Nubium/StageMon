@@ -109,9 +109,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _busColors,
   ));
 
-  // Channels, then LINE, then FX returns, then the aux bus — the order the
-  // </> arrows in the color sheet step through, independent of which of
-  // them are visible.
+  // Channels, then LINE, then FX returns, then group faders, then the aux
+  // bus — the order the </> arrows in the color sheet step through,
+  // independent of which of them are visible. Group faders have no console
+  // counterpart (allowConsoleSync: false) since they're a local combo, not
+  // a real console channel.
   List<ColorableFader> _colorableFaders() => [
     for (var ch = 1; ch <= 16; ch++)
       ColorableFader(
@@ -133,6 +135,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
         onChanged: (index) => setState(() => _fxReturnColors[rtn] = index),
         consoleColorIndex: widget.consoleFxReturnColors[rtn],
       ),
+    for (var i = 0; i < _groupConfigs.length; i++)
+      ColorableFader(
+        label: _groupConfigs[i].name,
+        colorIndex: _groupConfigs[i].colorIndex,
+        onChanged: (index) => setState(() {
+          _groupConfigs[i] = _groupConfigs[i].copyWith(colorIndex: index);
+        }),
+        consoleColorIndex: null,
+        allowConsoleSync: false,
+      ),
     ColorableFader(
       label: _busFaderChipLabel(),
       colorIndex: _busColors[_busColorKey],
@@ -140,6 +152,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       consoleColorIndex: widget.consoleBusColors[_busColorKey],
     ),
   ];
+
+  // Position of group i within _colorableFaders(): 16 channels + LINE + 4
+  // FX returns come first.
+  int _groupColorPosition(int i) => 21 + i;
 
   void _openColorSheet(int position) {
     showChannelColorSheet(
@@ -484,33 +500,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     horizontal: 16,
                     vertical: 4,
                   ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(cfg.name),
-                            Text(
-                              subtitle,
-                              style: const TextStyle(fontSize: 12),
+                  child: ConstrainedBox(
+                    // Caps the row so it doesn't stretch edge-to-edge on
+                    // landscape/tablet, which otherwise strands the gear
+                    // icon far from the chip and legend.
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) => Row(
+                        children: [
+                          ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxWidth: constraints.maxWidth * 0.5,
                             ),
-                          ],
-                        ),
+                            child: _colorableChip(
+                              label: cfg.name,
+                              selected: cfg.visible,
+                              onSelected: (on) => setState(() {
+                                _groupConfigs[i] = cfg.copyWith(visible: on);
+                              }),
+                              colorIndex: cfg.colorIndex,
+                              consoleColorIndex: null,
+                              onLongPress: () =>
+                                  _openColorSheet(_groupColorPosition(i)),
+                            ),
+                          ),
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.only(left: 8),
+                              child: Text(
+                                subtitle,
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.settings),
+                            tooltip: l.configureChannels,
+                            onPressed: () => _openGroupConfig(i),
+                          ),
+                        ],
                       ),
-                      Switch(
-                        value: cfg.visible,
-                        onChanged: (on) => setState(() {
-                          _groupConfigs[i] = cfg.copyWith(visible: on);
-                        }),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.settings),
-                        tooltip: l.configureChannels,
-                        onPressed: () => _openGroupConfig(i),
-                      ),
-                    ],
+                    ),
                   ),
                 );
               }),
