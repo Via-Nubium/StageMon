@@ -80,7 +80,7 @@ const List<ChannelColorOption> kChannelColors = [
   ChannelColorOption(
     index: 8,
     oscName: 'OFFi',
-    background: Color(0xFF2C2C2E),
+    background: Color(0xFF000000),
     foreground: Color(0xFFFFFFFF),
     isInverted: true,
   ),

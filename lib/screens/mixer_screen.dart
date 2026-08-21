@@ -897,11 +897,8 @@ class _MixerScreenState extends State<MixerScreen> {
                                   ),
                                 ),
                                 if (_showLineIn) ...[
-                                  Container(
+                                  SizedBox(
                                     width: _faderWidth,
-                                    color: Colors.deepOrange.withValues(
-                                      alpha: 0.04,
-                                    ),
                                     child: Column(
                                       children: [
                                         if (_ctrl.busPaired)

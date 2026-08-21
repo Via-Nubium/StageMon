@@ -95,9 +95,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   }
 
   Color? _memberColor(int key) {
-    if (key <= 16) return null;
-    if (key < 200) return Colors.teal;
-    return Colors.deepOrange;
+    if (key > 16 && key < 200) return Colors.teal;
+    return null;
   }
 
   int _memberNameColorIndex(int key) {
@@ -173,15 +172,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: members.map((key) {
-                        final color = _memberColor(key);
                         return SizedBox(
                           width: 90,
-                          child: color != null
-                              ? Container(
-                                  color: color.withValues(alpha: 0.04),
-                                  child: _buildMemberColumn(key, color),
-                                )
-                              : _buildMemberColumn(key, null),
+                          child: _buildMemberColumn(key, _memberColor(key)),
                         );
                       }).toList(),
                     ),
