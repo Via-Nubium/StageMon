@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
-- Long-press a channel, LINE, or FX return chip in Settings to give it a color — the same 16 colors the mixer itself uses for its scribble strips. Arrows let you step through every channel, LINE, and FX return without closing the menu. Leave it set to "Console" and the color automatically matches whatever that channel already has on the mixer. The chosen color shows on the chip in Settings and colors the channel's name on the mixer screen.
+- Long-press a channel, LINE, FX return, or group fader chip in Settings to give it a color — the same 16 colors the mixer itself uses for its scribble strips. Arrows let you step through every fader without closing the menu. Leave it set to "Console" and the color automatically matches whatever that channel already has on the mixer (not available for group faders, which don't exist on the console). The chosen color shows on the chip in Settings and colors the channel's or group's name on the mixer screen.
 - Pinch with two fingers over the faders to resize them, showing more or fewer channels at once.
 - Setting to keep the Master fader pinned to the right edge of the mixer screen while the other faders scroll independently (subordinate to "Bus master fader" in Settings).
 - Aux bus names configured on the mixer are now shown next to the bus number, in Settings and in the mixer screen title.
@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - (Android) New banner that appears immediately when the phone's wifi connection is lost, instead of waiting for the mixer connection to time out.
 
 ### Changed
+- Group faders in Settings now use the same visibility chip as channels/LINE/FX/MASTER, with the channel count and the configure button laid out next to it, instead of a separate switch.
 - Bus mute button is now taller, for easier tapping.
 - Master fader now has a dark blue background to set it apart from the other faders.
 - Aux bus picker in Settings now wraps onto multiple rows instead of a single-line segmented control, so long mixer names stay readable.
