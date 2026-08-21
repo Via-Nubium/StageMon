@@ -7,7 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
-- Long-press a channel, LINE, FX return, or group fader chip in Settings to give it a color — the same 16 colors the mixer itself uses for its scribble strips. Arrows let you step through every fader without closing the menu. Leave it set to "Console" and the color automatically matches whatever that channel already has on the mixer (not available for group faders, which don't exist on the console). The chosen color shows on the chip in Settings and colors the channel's or group's name on the mixer screen.
+- Long-press a channel, LINE, FX return, MASTER, or group fader chip in Settings to give it a color — the same 16 colors the mixer itself uses for its scribble strips. Arrows let you step through every fader without closing the menu. Leave it set to "Console" and the color automatically matches whatever that channel already has on the mixer (not available for group faders, which don't exist on the console). The chosen color shows on the chip in Settings and colors the fader's name on the mixer screen.
+- Aux bus color, read from the console, shown next to each bus in the picker sheet.
 - Pinch with two fingers over the faders to resize them, showing more or fewer channels at once.
 - Setting to keep the Master fader pinned to the right edge of the mixer screen while the other faders scroll independently (subordinate to "Bus master fader" in Settings).
 - Aux bus names configured on the mixer are now shown next to the bus number, in Settings and in the mixer screen title.
@@ -16,11 +17,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 - Group faders in Settings now use the same visibility chip as channels/LINE/FX/MASTER, with the channel count and the configure button laid out next to it, instead of a separate switch.
-- Bus mute button is now taller, for easier tapping.
+- Master mute button is now taller, for easier tapping.
 - Master fader now has a dark blue background to set it apart from the other faders.
-- Aux bus picker in Settings now wraps onto multiple rows instead of a single-line segmented control, so long mixer names stay readable.
-- "Aux send" section header in Settings (English) renamed to "Aux bus" for clarity.
-- Unified internal naming around "bus" (previously a mix of "bus"/"aux"). As a side effect, the saved "show bus fader" / "always visible" preferences and the bus level/mute stored in existing snapshots reset to their defaults after this update.
+- Aux bus picker in Settings is now a single row showing the selected bus, which opens a full list of every bus in a bottom sheet.
+- Unified internal naming around "bus" (previously a mix of "bus"/"aux"). As a side effect, the saved "show bus fader" preference and the bus level/mute stored in existing snapshots reset to their defaults after this update.
 
 ### Fixed
 - (Android) Fixed StageMon losing connection to the mixer at venues where the wifi network has no internet access. Even though the phone stayed connected to that wifi, Android would sometimes quietly reroute the app's traffic through mobile data instead, which can't reach the mixer since it's only reachable on the local network. StageMon now forces its own connection to stay on wifi whenever wifi is available, regardless of what Android picks as the default network for other apps.
