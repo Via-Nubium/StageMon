@@ -19,8 +19,14 @@ import 'group_detail_screen.dart';
 class MixerScreen extends StatefulWidget {
   final OscService service;
   final XR18Simulator? simulator;
+  final String consoleModel;
 
-  const MixerScreen({super.key, required this.service, this.simulator});
+  const MixerScreen({
+    super.key,
+    required this.service,
+    this.simulator,
+    required this.consoleModel,
+  });
 
   @override
   State<MixerScreen> createState() => _MixerScreenState();
@@ -151,8 +157,7 @@ class _MixerScreenState extends State<MixerScreen> {
     }
     if (savedFxReturnColors != null) {
       try {
-        final decoded =
-            jsonDecode(savedFxReturnColors) as Map<String, dynamic>;
+        final decoded = jsonDecode(savedFxReturnColors) as Map<String, dynamic>;
         setState(
           () => _fxReturnColors = decoded.map(
             (k, v) => MapEntry(int.parse(k), v as int?),
@@ -320,6 +325,7 @@ class _MixerScreenState extends State<MixerScreen> {
               consoleFxReturnColors: _ctrl.consoleFxReturnColors,
               busColors: _busColors,
               consoleBusColors: _ctrl.consoleBusColors,
+              consoleModel: widget.consoleModel,
             ),
           ),
         );
@@ -884,7 +890,8 @@ class _MixerScreenState extends State<MixerScreen> {
                                                 _ctrl.meterLevels[ch - 1],
                                             nameColorIndex:
                                                 _channelColors[ch] ??
-                                                _ctrl.consoleChannelColors[ch] ??
+                                                _ctrl
+                                                    .consoleChannelColors[ch] ??
                                                 0,
                                             isPinchActive: _isPinchActive,
                                             onDragActiveStart:
@@ -965,7 +972,8 @@ class _MixerScreenState extends State<MixerScreen> {
                                                 _ctrl.fxReturnMeterR[rtn - 1],
                                             nameColorIndex:
                                                 _fxReturnColors[rtn] ??
-                                                _ctrl.consoleFxReturnColors[rtn] ??
+                                                _ctrl
+                                                    .consoleFxReturnColors[rtn] ??
                                                 0,
                                             isPinchActive: _isPinchActive,
                                             onDragActiveStart:

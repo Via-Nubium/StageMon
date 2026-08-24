@@ -6,8 +6,10 @@ import '../utils/bus_title.dart';
 import '../widgets/bus_picker_sheet.dart';
 import '../widgets/channel_color_sheet.dart';
 import '../widgets/color_handle_badge.dart';
+import '../models/saved_layout.dart';
 import 'about_screen.dart';
 import 'group_config_screen.dart';
+import 'layouts_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   final Set<int> selectedChannels;
@@ -28,6 +30,7 @@ class SettingsScreen extends StatefulWidget {
   final Map<int, int> consoleFxReturnColors;
   final Map<int, int?> busColors;
   final Map<int, int> consoleBusColors;
+  final String consoleModel;
 
   const SettingsScreen({
     super.key,
@@ -49,6 +52,7 @@ class SettingsScreen extends StatefulWidget {
     required this.consoleFxReturnColors,
     required this.busColors,
     required this.consoleBusColors,
+    required this.consoleModel,
   });
 
   @override
@@ -91,7 +95,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // Console color only — no override — to stay consistent with what the
   // bus picker sheet shows for every bus.
   Widget _busColorDot() {
-    final color = channelColorByIndex(widget.consoleBusColors[_busColorKey] ?? 0);
+    final color = channelColorByIndex(
+      widget.consoleBusColors[_busColorKey] ?? 0,
+    );
     return ColorDot(background: color.background, foreground: color.foreground);
   }
 
@@ -180,9 +186,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         clipBehavior: Clip.none,
         children: [
           Theme(
-            data: Theme.of(context).copyWith(
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
+            data: Theme.of(
+              context,
+            ).copyWith(materialTapTargetSize: MaterialTapTargetSize.shrinkWrap),
             child: FilterChip(
               label: Text(label, overflow: TextOverflow.ellipsis, maxLines: 1),
               selected: selected,
@@ -241,6 +247,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (o.matches.contains(_bus)) return o.label;
     }
     return _busLabel(_bus);
+  }
+
+  Future<void> _openLayouts() async {
+    final result = await Navigator.push<SavedLayout>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LayoutsScreen(
+          selectedChannels: _selected,
+          showBusFader: _showBusFader,
+          bus: _bus,
+          groupConfigs: _groupConfigs,
+          selectedFxReturns: _selectedFxReturns,
+          showLineIn: _showLineIn,
+          busAlwaysVisible: _busAlwaysVisible,
+          channelColors: _channelColors,
+          lineInColor: _lineInColor,
+          fxReturnColors: _fxReturnColors,
+          busColors: _busColors,
+          consoleModel: widget.consoleModel,
+        ),
+      ),
+    );
+    if (result != null && mounted) {
+      setState(() {
+        _selected = Set.of(result.selectedChannels);
+        _showBusFader = result.showBusFader;
+        if (result.bus != null) _bus = result.bus!;
+        _groupConfigs = List.of(result.groupConfigs);
+        _selectedFxReturns = Set.of(result.selectedFxReturns);
+        _showLineIn = result.showLineIn;
+        _busAlwaysVisible = result.busAlwaysVisible;
+        _channelColors = Map.of(result.channelColors);
+        _lineInColor = result.lineInColor;
+        _fxReturnColors = Map.of(result.fxReturnColors);
+        _busColors = Map.of(result.busColors);
+      });
+    }
   }
 
   void _openBusPicker() {
@@ -332,7 +375,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
     final base = '$odd/$even';
     if (hasOdd && hasEven) {
-      return nameOdd == nameEven ? '$base · $nameOdd' : '$base · $nameOdd/$nameEven';
+      return nameOdd == nameEven
+          ? '$base · $nameOdd'
+          : '$base · $nameOdd/$nameEven';
     }
     return '$base · ${hasOdd ? nameOdd : nameEven}';
   }
@@ -563,10 +608,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: _colorableChip(
                         label: 'MASTER',
                         selected: _showBusFader,
-                        onSelected: (on) =>
-                            setState(() => _showBusFader = on),
+                        onSelected: (on) => setState(() => _showBusFader = on),
                         colorIndex: _busColors[_busColorKey],
-                        consoleColorIndex: widget.consoleBusColors[_busColorKey],
+                        consoleColorIndex:
+                            widget.consoleBusColors[_busColorKey],
                         onLongPress: () =>
                             _openColorSheet(_colorableFaders().length - 1),
                       ),
@@ -575,6 +620,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _pinChip(),
                   ],
                 ),
+              ),
+              const Divider(height: 32),
+              ListTile(
+                leading: const Icon(Icons.dashboard_customize_outlined),
+                title: Text(l.layoutsTitle),
+                subtitle: Text(l.layoutsSubtitle),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: _openLayouts,
               ),
               const Divider(height: 32),
               ListTile(

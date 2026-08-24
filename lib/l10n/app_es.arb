@@ -97,5 +97,21 @@
   "colorBli": "Azul Inv",
   "colorMgi": "Mag Inv",
   "colorCyi": "Cian Inv",
-  "colorWhi": "Blanco Inv"
+  "colorWhi": "Blanco Inv",
+
+  "layoutsTitle": "Layouts",
+  "layoutsSubtitle": "Guardar y cargar configuraciones de pantalla",
+  "noLayoutsSaved": "No hay layouts guardados",
+  "layoutDefaultName": "Layout {n}",
+  "layoutNameTitle": "Nombre del layout",
+  "saveLayout": "Guardar layout actual",
+  "overwriteLayoutConfirm": "¿Reemplazar \"{name}\" con la configuración actual?",
+  "loadLayoutTooltip": "Cargar este layout",
+  "load": "Cargar",
+  "loadLayoutConfirmTitle": "Cargar layout",
+  "loadLayoutConfirm": "¿Cargar \"{name}\"? Se reemplazará la configuración de pantalla actual.",
+  "busWillChangeNote": "Se cambiará el bus auxiliar de salida.",
+  "includeBusOption": "Incluir bus de salida",
+  "fxReturnCount": "{count, plural, =1{1 FX} other{{count} FX}}",
+  "groupCount": "{count, plural, =1{1 grupo} other{{count} grupos}}"
 }

@@ -45,12 +45,16 @@ class _ConnectScreenState extends State<ConnectScreen> {
       _consoles = [];
     });
     try {
-      final consoles = await OscService.findAllConsoles()
-          .timeout(const Duration(seconds: 6), onTimeout: () => []);
+      final consoles = await OscService.findAllConsoles().timeout(
+        const Duration(seconds: 6),
+        onTimeout: () => [],
+      );
       if (!mounted) return;
       setState(() {
         _consoles = consoles;
-        _status = consoles.isNotEmpty ? _DiscoveryStatus.found : _DiscoveryStatus.notFound;
+        _status = consoles.isNotEmpty
+            ? _DiscoveryStatus.found
+            : _DiscoveryStatus.notFound;
       });
     } catch (_) {
       if (!mounted) return;
@@ -74,9 +78,9 @@ class _ConnectScreenState extends State<ConnectScreen> {
     final ip = _ipController.text.trim();
     if (ip.isEmpty) return;
     if (!_isValidIp(ip)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l.invalidIp)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l.invalidIp)));
       return;
     }
 
@@ -139,17 +143,21 @@ class _ConnectScreenState extends State<ConnectScreen> {
       );
       if (confirm != true) return;
     }
-    _connect(console.ip);
+    _connect(console.ip, null, console.model);
   }
 
-  void _connect([String? overrideIp, XR18Simulator? simulator]) async {
+  void _connect([
+    String? overrideIp,
+    XR18Simulator? simulator,
+    String? model,
+  ]) async {
     final l = AppLocalizations.of(context)!;
     final ip = (overrideIp ?? _ipController.text).trim();
     if (ip.isEmpty) return;
     if (simulator == null && !_isValidIp(ip)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l.invalidIp)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l.invalidIp)));
       return;
     }
     final service = simulator == null
@@ -160,19 +168,26 @@ class _ConnectScreenState extends State<ConnectScreen> {
     } catch (e) {
       simulator?.stop();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l.socketError(e.toString()))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l.socketError(e.toString()))));
       return;
     }
     if (!mounted) return;
     if (simulator == null) {
       SharedPreferences.getInstance().then((p) => p.setString('last_ip', ip));
     }
+    // Recorded into saved layouts so future console models that might
+    // conflict with today's addressing can be told apart later.
+    final consoleModel = simulator != null ? 'XR18Sim' : (model ?? 'Unknown');
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => MixerScreen(service: service, simulator: simulator),
+        builder: (_) => MixerScreen(
+          service: service,
+          simulator: simulator,
+          consoleModel: consoleModel,
+        ),
       ),
     );
     // Back from MixerScreen (disconnect) — the previous discovery results are stale
@@ -189,9 +204,9 @@ class _ConnectScreenState extends State<ConnectScreen> {
       if (!mounted) return;
       setState(() => _isConnecting = false);
       final l = AppLocalizations.of(context)!;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l.socketError(e.toString()))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l.socketError(e.toString()))));
       return;
     }
     if (!mounted) return;
@@ -215,10 +230,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
               const Text(
                 "StageMon",
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 32),
               _buildDiscoverySection(l),
@@ -262,7 +274,9 @@ class _ConnectScreenState extends State<ConnectScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: isSearching || _isConnecting ? null : _connectManual,
+                      onPressed: isSearching || _isConnecting
+                          ? null
+                          : _connectManual,
                       icon: const Icon(Icons.power_settings_new),
                       label: Text(l.connect),
                       style: ElevatedButton.styleFrom(
@@ -311,9 +325,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            _SimulatorCard(
-              onTap: _isConnecting ? null : _connectSimulator,
-            ),
+            _SimulatorCard(onTap: _isConnecting ? null : _connectSimulator),
           ],
         );
 
@@ -321,20 +333,13 @@ class _ConnectScreenState extends State<ConnectScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              l.mixersFound,
-              style: const TextStyle(fontSize: 12),
-            ),
+            Text(l.mixersFound, style: const TextStyle(fontSize: 12)),
             const SizedBox(height: 8),
             ..._consoles.map(
-              (c) => _ConsoleCard(
-                console: c,
-                onTap: () => _connectToConsole(c),
-              ),
+              (c) =>
+                  _ConsoleCard(console: c, onTap: () => _connectToConsole(c)),
             ),
-            _SimulatorCard(
-              onTap: _isConnecting ? null : _connectSimulator,
-            ),
+            _SimulatorCard(onTap: _isConnecting ? null : _connectSimulator),
           ],
         );
     }

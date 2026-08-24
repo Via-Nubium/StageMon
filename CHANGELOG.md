@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Aux bus names configured on the mixer are now shown next to the bus number, in Settings and in the mixer screen title.
 - Mixer screen title turns red with a MUTED badge when the bus is muted.
 - (Android) New banner that appears immediately when the phone's wifi connection is lost, instead of waiting for the mixer connection to time out.
+- New "Layouts" screen in Settings: save the current screen setup (visible channels, groups, colors, and optionally the aux bus) under a name, and reload it later. Loading a layout asks for confirmation, and warns if it will also change the aux bus.
 
 ### Changed
 - Group faders in Settings now use the same visibility chip as channels/LINE/FX/MASTER, with the channel count and the configure button laid out next to it, instead of a separate switch.

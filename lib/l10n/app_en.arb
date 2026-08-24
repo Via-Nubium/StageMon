@@ -322,5 +322,70 @@
   "colorCyi": "Cyan Inv",
   "@colorCyi": {},
   "colorWhi": "White Inv",
-  "@colorWhi": {}
+  "@colorWhi": {},
+
+  "layoutsTitle": "Layouts",
+  "@layoutsTitle": {},
+
+  "layoutsSubtitle": "Save and load screen setups",
+  "@layoutsSubtitle": {},
+
+  "noLayoutsSaved": "No layouts saved",
+  "@noLayoutsSaved": {},
+
+  "layoutDefaultName": "Layout {n}",
+  "@layoutDefaultName": {
+    "placeholders": {
+      "n": {"type": "int"}
+    }
+  },
+
+  "layoutNameTitle": "Layout name",
+  "@layoutNameTitle": {},
+
+  "saveLayout": "Save current layout",
+  "@saveLayout": {},
+
+  "overwriteLayoutConfirm": "Replace \"{name}\" with the current configuration?",
+  "@overwriteLayoutConfirm": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+
+  "loadLayoutTooltip": "Load this layout",
+  "@loadLayoutTooltip": {},
+
+  "load": "Load",
+  "@load": {},
+
+  "loadLayoutConfirmTitle": "Load layout",
+  "@loadLayoutConfirmTitle": {},
+
+  "loadLayoutConfirm": "Load \"{name}\"? This will replace the current screen configuration.",
+  "@loadLayoutConfirm": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+
+  "busWillChangeNote": "The output bus will change.",
+  "@busWillChangeNote": {},
+
+  "includeBusOption": "Include output bus",
+  "@includeBusOption": {},
+
+  "fxReturnCount": "{count, plural, =1{1 FX} other{{count} FX}}",
+  "@fxReturnCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+
+  "groupCount": "{count, plural, =1{1 group} other{{count} groups}}",
+  "@groupCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  }
 }
