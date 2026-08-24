@@ -234,7 +234,16 @@ class _ConnectScreenState extends State<ConnectScreen> {
               ),
               const SizedBox(height: 32),
               _buildDiscoverySection(l),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: isSearching ? null : _discover,
+                icon: const Icon(Icons.search),
+                label: Text(l.search),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+              const SizedBox(height: 80),
               Row(
                 children: [
                   const Expanded(child: Divider()),
@@ -259,32 +268,13 @@ class _ConnectScreenState extends State<ConnectScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: isSearching ? null : _discover,
-                      icon: const Icon(Icons.search),
-                      label: Text(l.search),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: isSearching || _isConnecting
-                          ? null
-                          : _connectManual,
-                      icon: const Icon(Icons.power_settings_new),
-                      label: Text(l.connect),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                    ),
-                  ),
-                ],
+              ElevatedButton.icon(
+                onPressed: isSearching || _isConnecting ? null : _connectManual,
+                icon: const Icon(Icons.power_settings_new),
+                label: Text(l.connect),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
               ),
             ],
           ),
