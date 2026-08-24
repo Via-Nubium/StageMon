@@ -22,6 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Master fader now has a dark blue background to set it apart from the other faders.
 - Aux bus picker in Settings is now a single row showing the selected bus, which opens a full list of every bus in a bottom sheet.
 - Unified internal naming around "bus" (previously a mix of "bus"/"aux"). As a side effect, the saved "show bus fader" preference and the bus level/mute stored in existing snapshots reset to their defaults after this update.
+- Visible channels, FX Returns, group faders, and the bus master fader are now grouped together in a single card in Settings, to set them apart from the rest of the settings.
 
 ### Fixed
 - (Android) Fixed StageMon losing connection to the mixer at venues where the wifi network has no internet access. Even though the phone stayed connected to that wifi, Android would sometimes quietly reroute the app's traffic through mobile data instead, which can't reach the mixer since it's only reachable on the local network. StageMon now forces its own connection to stay on wifi whenever wifi is available, regardless of what Android picks as the default network for other apps.

@@ -47,7 +47,7 @@
   "auxBus": "Aux bus",
   "@auxBus": {},
 
-  "visibleChannels": "Visible channels",
+  "visibleChannels": "Input channels",
   "@visibleChannels": {},
 
   "groupFaders": "Group faders",
@@ -371,6 +371,9 @@
 
   "busWillChangeNote": "The output bus will change.",
   "@busWillChangeNote": {},
+
+  "faderVisibilityTitle": "Visible faders",
+  "@faderVisibilityTitle": {},
 
   "includeBusOption": "Include output bus",
   "@includeBusOption": {},

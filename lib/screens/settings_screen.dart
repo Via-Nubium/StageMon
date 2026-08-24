@@ -171,6 +171,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Widget _cardSubLabel(String text) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+    child: Text(
+      text,
+      style: const TextStyle(
+        fontSize: 11.5,
+        fontWeight: FontWeight.w600,
+        color: Colors.white54,
+        letterSpacing: 0.5,
+      ),
+    ),
+  );
+
+  Widget _hairline() => Container(
+    height: 1,
+    margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+    color: Colors.white.withValues(alpha: 0.08),
+  );
+
   Widget _colorableChip({
     required String label,
     required bool selected,
@@ -427,10 +446,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
                 child: Text(
                   l.auxBus,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: Colors.white70,
-                    letterSpacing: 0.8,
-                  ),
+                  style: Theme.of(context).textTheme.bodyLarge,
                 ),
               ),
               Padding(
@@ -448,176 +464,181 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               const Divider(height: 32),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: Text(
-                  l.visibleChannels,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: Colors.white70,
-                    letterSpacing: 0.8,
-                  ),
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.fromLTRB(0, 14, 0, 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF16181D),
+                  border: Border.all(color: const Color(0xFF2C3038)),
+                  borderRadius: BorderRadius.circular(14),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ...List.generate(16, (i) {
-                      final ch = i + 1;
-                      final label =
-                          widget.channelNames[ch] ??
-                          'Ch ${ch.toString().padLeft(2, '0')}';
-                      return _colorableChip(
-                        label: label,
-                        selected: _selected.contains(ch),
-                        onSelected: (on) => setState(() {
-                          on ? _selected.add(ch) : _selected.remove(ch);
-                        }),
-                        colorIndex: _channelColors[ch],
-                        consoleColorIndex: widget.consoleChannelColors[ch],
-                        onLongPress: () => _openColorSheet(ch - 1),
-                      );
-                    }),
-                    _colorableChip(
-                      label: 'LINE',
-                      selected: _showLineIn,
-                      onSelected: (on) => setState(() => _showLineIn = on),
-                      colorIndex: _lineInColor,
-                      consoleColorIndex: widget.consoleLineInColor,
-                      onLongPress: () => _openColorSheet(16),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(height: 32),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: Text(
-                  l.fxReturns,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: Colors.white70,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: List.generate(4, (i) {
-                    final rtn = i + 1;
-                    return _colorableChip(
-                      label: 'FX $rtn',
-                      selected: _selectedFxReturns.contains(rtn),
-                      onSelected: (on) => setState(() {
-                        on
-                            ? _selectedFxReturns.add(rtn)
-                            : _selectedFxReturns.remove(rtn);
-                      }),
-                      colorIndex: _fxReturnColors[rtn],
-                      consoleColorIndex: widget.consoleFxReturnColors[rtn],
-                      onLongPress: () => _openColorSheet(16 + rtn),
-                    );
-                  }),
-                ),
-              ),
-              const Divider(height: 32),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-                child: Text(
-                  l.groupFaders,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: Colors.white70,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-              ),
-              ...List.generate(_groupConfigs.length, (i) {
-                final cfg = _groupConfigs[i];
-                final subtitle = cfg.memberCount == 0
-                    ? l.noChannelsAssigned
-                    : l.channelCount(cfg.memberCount);
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 4,
-                  ),
-                  child: ConstrainedBox(
-                    // Caps the row so it doesn't stretch edge-to-edge on
-                    // landscape/tablet, which otherwise strands the gear
-                    // icon far from the chip and legend.
-                    constraints: const BoxConstraints(maxWidth: 420),
-                    child: LayoutBuilder(
-                      builder: (context, constraints) => Row(
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                      child: Row(
                         children: [
-                          ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxWidth: constraints.maxWidth * 0.5,
-                            ),
-                            child: _colorableChip(
-                              label: cfg.name,
-                              selected: cfg.visible,
-                              onSelected: (on) => setState(() {
-                                _groupConfigs[i] = cfg.copyWith(visible: on);
-                              }),
-                              colorIndex: cfg.colorIndex,
-                              consoleColorIndex: null,
-                              onLongPress: () =>
-                                  _openColorSheet(_groupColorPosition(i)),
+                          const RotatedBox(
+                            quarterTurns: 1,
+                            child: Icon(
+                              Icons.tune,
+                              size: 17,
+                              color: Color(0xFF3A6EA8),
                             ),
                           ),
-                          Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.only(left: 8),
-                              child: Text(
-                                subtitle,
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.settings),
-                            tooltip: l.configureChannels,
-                            onPressed: () => _openGroupConfig(i),
+                          const SizedBox(width: 8),
+                          Text(
+                            l.faderVisibilityTitle,
+                            style: Theme.of(context).textTheme.bodyLarge,
                           ),
                         ],
                       ),
                     ),
-                  ),
-                );
-              }),
-              const Divider(height: 32),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: Text(
-                  l.busFaderVisibility,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: Colors.white70,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    Flexible(
-                      child: _colorableChip(
-                        label: 'MASTER',
-                        selected: _showBusFader,
-                        onSelected: (on) => setState(() => _showBusFader = on),
-                        colorIndex: _busColors[_busColorKey],
-                        consoleColorIndex:
-                            widget.consoleBusColors[_busColorKey],
-                        onLongPress: () =>
-                            _openColorSheet(_colorableFaders().length - 1),
+                    _cardSubLabel(l.visibleChannels),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          ...List.generate(16, (i) {
+                            final ch = i + 1;
+                            final label =
+                                widget.channelNames[ch] ??
+                                'Ch ${ch.toString().padLeft(2, '0')}';
+                            return _colorableChip(
+                              label: label,
+                              selected: _selected.contains(ch),
+                              onSelected: (on) => setState(() {
+                                on ? _selected.add(ch) : _selected.remove(ch);
+                              }),
+                              colorIndex: _channelColors[ch],
+                              consoleColorIndex:
+                                  widget.consoleChannelColors[ch],
+                              onLongPress: () => _openColorSheet(ch - 1),
+                            );
+                          }),
+                          _colorableChip(
+                            label: 'LINE',
+                            selected: _showLineIn,
+                            onSelected: (on) =>
+                                setState(() => _showLineIn = on),
+                            colorIndex: _lineInColor,
+                            consoleColorIndex: widget.consoleLineInColor,
+                            onLongPress: () => _openColorSheet(16),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    _pinChip(),
+                    _hairline(),
+                    _cardSubLabel(l.fxReturns),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: List.generate(4, (i) {
+                          final rtn = i + 1;
+                          return _colorableChip(
+                            label: 'FX $rtn',
+                            selected: _selectedFxReturns.contains(rtn),
+                            onSelected: (on) => setState(() {
+                              on
+                                  ? _selectedFxReturns.add(rtn)
+                                  : _selectedFxReturns.remove(rtn);
+                            }),
+                            colorIndex: _fxReturnColors[rtn],
+                            consoleColorIndex:
+                                widget.consoleFxReturnColors[rtn],
+                            onLongPress: () => _openColorSheet(16 + rtn),
+                          );
+                        }),
+                      ),
+                    ),
+                    _hairline(),
+                    _cardSubLabel(l.groupFaders),
+                    ...List.generate(_groupConfigs.length, (i) {
+                      final cfg = _groupConfigs[i];
+                      final subtitle = cfg.memberCount == 0
+                          ? l.noChannelsAssigned
+                          : l.channelCount(cfg.memberCount);
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
+                        child: ConstrainedBox(
+                          // Caps the row so it doesn't stretch edge-to-edge
+                          // on landscape/tablet, which otherwise strands the
+                          // gear icon far from the chip and legend.
+                          constraints: const BoxConstraints(maxWidth: 420),
+                          child: LayoutBuilder(
+                            builder: (context, constraints) => Row(
+                              children: [
+                                ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    maxWidth: constraints.maxWidth * 0.5,
+                                  ),
+                                  child: _colorableChip(
+                                    label: cfg.name,
+                                    selected: cfg.visible,
+                                    onSelected: (on) => setState(() {
+                                      _groupConfigs[i] = cfg.copyWith(
+                                        visible: on,
+                                      );
+                                    }),
+                                    colorIndex: cfg.colorIndex,
+                                    consoleColorIndex: null,
+                                    onLongPress: () =>
+                                        _openColorSheet(_groupColorPosition(i)),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(left: 8),
+                                    child: Text(
+                                      subtitle,
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.settings),
+                                  tooltip: l.configureChannels,
+                                  onPressed: () => _openGroupConfig(i),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                    _hairline(),
+                    _cardSubLabel(l.busFaderVisibility),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        children: [
+                          Flexible(
+                            child: _colorableChip(
+                              label: 'MASTER',
+                              selected: _showBusFader,
+                              onSelected: (on) =>
+                                  setState(() => _showBusFader = on),
+                              colorIndex: _busColors[_busColorKey],
+                              consoleColorIndex:
+                                  widget.consoleBusColors[_busColorKey],
+                              onLongPress: () => _openColorSheet(
+                                _colorableFaders().length - 1,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          _pinChip(),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
