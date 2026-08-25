@@ -90,7 +90,7 @@ class _MixerScreenState extends State<MixerScreen> {
   @override
   void initState() {
     super.initState();
-    _ctrl = MixerController(service: widget.service);
+    _ctrl = MixerController(service: widget.service, simulator: widget.simulator);
     _snapshots.load().then((_) {
       if (mounted) setState(() {});
     });

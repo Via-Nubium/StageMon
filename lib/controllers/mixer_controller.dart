@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/osc_service.dart';
+import '../services/xr18_simulator.dart';
 
 class MixerController extends ChangeNotifier with WidgetsBindingObserver {
   final OscService service;
+  final XR18Simulator? simulator;
 
-  MixerController({required this.service}) {
+  MixerController({required this.service, this.simulator}) {
     WidgetsBinding.instance.addObserver(this);
     _loadChannelNames();
     _loadBusNames();
@@ -93,6 +95,7 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) async {
     if (state == AppLifecycleState.resumed) {
+      await simulator?.restart();
       await service.init();
     }
   }

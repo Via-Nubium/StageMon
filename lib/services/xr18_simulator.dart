@@ -36,14 +36,34 @@ class XR18Simulator {
   final Map<String, dynamic> _state = {};
   InternetAddress? _meterSubAddr;
   int? _meterSubPort;
+  int? _boundPort;
 
-  /// Port the OS assigned once [start] completes.
-  int get port => _socket!.port;
+  /// Port the OS assigned once [start] completes. Stays valid across
+  /// [restart] (which rebinds to this same port, not a fresh one) since
+  /// [OscService.port] is fixed at construction and can't be repointed.
+  int get port => _boundPort!;
 
   Future<void> start() async {
     _startTime = DateTime.now();
     _seedDefaults();
     _socket = await RawDatagramSocket.bind(InternetAddress.loopbackIPv4, 0);
+    _boundPort = _socket!.port;
+    _socket!.listen(_onReceive);
+    _meterTimer = Timer.periodic(const Duration(milliseconds: 100), _pushMeters);
+  }
+
+  // Recreates the socket and meter timer on the same port. Android can
+  // leave a long-suspended process's loopback sockets dead on resume the
+  // same way it does OscService's client socket (see OscService.init) —
+  // but unlike OscService, nothing recreated the simulator's *server*
+  // socket, so it kept "listening" on a dead fd forever after a resume.
+  Future<void> restart() async {
+    if (_boundPort == null) return;
+    _meterTimer?.cancel();
+    _socket?.close();
+    _meterSubAddr = null;
+    _meterSubPort = null;
+    _socket = await RawDatagramSocket.bind(InternetAddress.loopbackIPv4, _boundPort!);
     _socket!.listen(_onReceive);
     _meterTimer = Timer.periodic(const Duration(milliseconds: 100), _pushMeters);
   }
