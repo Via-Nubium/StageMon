@@ -556,6 +556,114 @@ class _MixerScreenState extends State<MixerScreen> {
                         separatorBuilder: (_, _) => const Divider(height: 1),
                         itemBuilder: (_, i) {
                           final snap = _snapshots.snapshots[i];
+                          Future<void> showActions() async {
+                            final action = await showDialog<String>(
+                              context: context,
+                              builder: (d) => SimpleDialog(
+                                title: Text(snap.name),
+                                children: [
+                                  SimpleDialogOption(
+                                    onPressed: () =>
+                                        Navigator.pop(d, 'overwrite'),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.save_outlined),
+                                        const SizedBox(width: 12),
+                                        Text(l.saveSnapshot),
+                                      ],
+                                    ),
+                                  ),
+                                  SimpleDialogOption(
+                                    onPressed: () => Navigator.pop(d, 'rename'),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.edit_outlined),
+                                        const SizedBox(width: 12),
+                                        Text(l.rename),
+                                      ],
+                                    ),
+                                  ),
+                                  SimpleDialogOption(
+                                    onPressed: () => Navigator.pop(d, 'delete'),
+                                    child: Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.delete_outline,
+                                          color: Colors.red,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Text(
+                                          l.delete,
+                                          style: const TextStyle(
+                                            color: Colors.red,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  SimpleDialogOption(
+                                    onPressed: () => Navigator.pop(d),
+                                    child: Row(
+                                      children: [
+                                        const SizedBox(width: 36),
+                                        Text(l.cancel),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (!mounted) return;
+                            if (action == 'overwrite') {
+                              final confirmed = await showDialog<bool>(
+                                context: context,
+                                builder: (d) => AlertDialog(
+                                  title: Text(l.saveSnapshot),
+                                  content: Text(
+                                    l.overwriteSnapshotConfirm(snap.name),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(d, false),
+                                      child: Text(l.cancel),
+                                    ),
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(d, true),
+                                      child: Text(l.save),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (confirmed == true) {
+                                await _snapshots.overwrite(
+                                  i,
+                                  Map.of(_ctrl.faderValues),
+                                  panValues: Map.of(_ctrl.panValues),
+                                  busLevel: _ctrl.busFaderValue,
+                                  busMuted: _ctrl.busMuted,
+                                  fxReturnValues: Map.of(_ctrl.fxReturnValues),
+                                  fxReturnPanValues: Map.of(
+                                    _ctrl.fxReturnPanValues,
+                                  ),
+                                  lineInLevel: _ctrl.lineInFaderValue,
+                                  lineInPan: _ctrl.lineInPanValue,
+                                );
+                                setSheetState(() {});
+                              }
+                            } else if (action == 'delete') {
+                              await _snapshots.remove(i);
+                              setSheetState(() {});
+                            } else if (action == 'rename') {
+                              final name = await _showNameDialog(
+                                defaultName: snap.name,
+                              );
+                              if (name != null && name.isNotEmpty) {
+                                await _snapshots.rename(i, name);
+                                setSheetState(() {});
+                              }
+                            }
+                          }
+
                           return ListTile(
                             title: Text(snap.name),
                             subtitle: Text(
@@ -571,100 +679,16 @@ class _MixerScreenState extends State<MixerScreen> {
                                 fontSize: 12,
                               ),
                             ),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.restore_rounded),
-                              tooltip: l.restoreTooltip,
-                              onPressed: () {
-                                Navigator.pop(sheetCtx);
-                                _restoreSnapshot(snap);
-                              },
-                            ),
-                            onLongPress: () async {
-                              final action = await showDialog<String>(
-                                context: context,
-                                builder: (d) => SimpleDialog(
-                                  title: Text(snap.name),
-                                  children: [
-                                    SimpleDialogOption(
-                                      onPressed: () =>
-                                          Navigator.pop(d, 'overwrite'),
-                                      child: Text(l.saveSnapshot),
-                                    ),
-                                    SimpleDialogOption(
-                                      onPressed: () =>
-                                          Navigator.pop(d, 'rename'),
-                                      child: Text(l.rename),
-                                    ),
-                                    SimpleDialogOption(
-                                      onPressed: () =>
-                                          Navigator.pop(d, 'delete'),
-                                      child: Text(
-                                        l.delete,
-                                        style: const TextStyle(
-                                          color: Colors.red,
-                                        ),
-                                      ),
-                                    ),
-                                    SimpleDialogOption(
-                                      onPressed: () => Navigator.pop(d),
-                                      child: Text(l.cancel),
-                                    ),
-                                  ],
-                                ),
-                              );
-                              if (!mounted) return;
-                              if (action == 'overwrite') {
-                                final confirmed = await showDialog<bool>(
-                                  context: context,
-                                  builder: (d) => AlertDialog(
-                                    title: Text(l.saveSnapshot),
-                                    content: Text(
-                                      l.overwriteSnapshotConfirm(snap.name),
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(d, false),
-                                        child: Text(l.cancel),
-                                      ),
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(d, true),
-                                        child: Text(l.save),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                                if (confirmed == true) {
-                                  await _snapshots.overwrite(
-                                    i,
-                                    Map.of(_ctrl.faderValues),
-                                    panValues: Map.of(_ctrl.panValues),
-                                    busLevel: _ctrl.busFaderValue,
-                                    busMuted: _ctrl.busMuted,
-                                    fxReturnValues: Map.of(
-                                      _ctrl.fxReturnValues,
-                                    ),
-                                    fxReturnPanValues: Map.of(
-                                      _ctrl.fxReturnPanValues,
-                                    ),
-                                    lineInLevel: _ctrl.lineInFaderValue,
-                                    lineInPan: _ctrl.lineInPanValue,
-                                  );
-                                  setSheetState(() {});
-                                }
-                              } else if (action == 'delete') {
-                                await _snapshots.remove(i);
-                                setSheetState(() {});
-                              } else if (action == 'rename') {
-                                final name = await _showNameDialog(
-                                  defaultName: snap.name,
-                                );
-                                if (name != null && name.isNotEmpty) {
-                                  await _snapshots.rename(i, name);
-                                  setSheetState(() {});
-                                }
-                              }
+                            onTap: () {
+                              Navigator.pop(sheetCtx);
+                              _restoreSnapshot(snap);
                             },
+                            trailing: IconButton(
+                              icon: const Icon(Icons.more_vert),
+                              tooltip: l.layoutActionsTooltip,
+                              onPressed: showActions,
+                            ),
+                            onLongPress: showActions,
                           );
                         },
                       ),

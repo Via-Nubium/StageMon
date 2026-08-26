@@ -117,9 +117,6 @@
     }
   },
 
-  "restoreTooltip": "Restore (active channels only)",
-  "@restoreTooltip": {},
-
   "saveSnapshot": "Save current state",
   "@saveSnapshot": {},
 

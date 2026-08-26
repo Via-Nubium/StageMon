@@ -33,7 +33,6 @@
   "snapshotNoData": "Sin datos — no había consola conectada",
   "snapshotWithPan": "{count} canales + pan (stereo)",
   "snapshotChannels": "{count} canales guardados",
-  "restoreTooltip": "Restaurar (solo canales activos)",
   "saveSnapshot": "Guardar estado actual",
   "overwriteSnapshotConfirm": "¿Reemplazar \"{name}\" con el estado actual de los faders?",
   "save": "Guardar",

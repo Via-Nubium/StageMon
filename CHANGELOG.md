@@ -26,6 +26,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Unified internal naming around "bus" (previously a mix of "bus"/"aux"). As a side effect, the saved "show bus fader" preference and the bus level/mute stored in existing snapshots reset to their defaults after this update.
 - Visible channels, FX Returns, group faders, and the bus master fader are now grouped together in a single card in Settings, to set them apart from the rest of the settings.
 - Connect screen: "Search again" now sits below the discovered consoles/simulator list it re-triggers, and manual IP connection has its own full-width "Manual connect" button, instead of the two sitting side by side.
+- Snapshots sheet: tapping a snapshot now loads it directly, and a "more options" (⋮) button opens save/rename/delete — matching the tap-to-load-with-menu pattern already used in Layouts, instead of relying on an undiscoverable long-press for those actions.
 
 ### Fixed
 - (Android) Fixed StageMon losing connection to the mixer at venues where the wifi network has no internet access. Even though the phone stayed connected to that wifi, Android would sometimes quietly reroute the app's traffic through mobile data instead, which can't reach the mixer since it's only reachable on the local network. StageMon now forces its own connection to stay on wifi whenever wifi is available, regardless of what Android picks as the default network for other apps.
