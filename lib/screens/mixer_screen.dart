@@ -6,6 +6,7 @@ import '../services/osc_service.dart';
 import '../services/xr18_simulator.dart';
 import '../services/android_network_binder.dart';
 import '../services/layout_import_service.dart';
+import '../services/screen_awake_service.dart';
 import '../widgets/custom_fader.dart';
 import '../widgets/mute_button.dart';
 import '../widgets/pan_knob.dart';
@@ -95,6 +96,7 @@ class _MixerScreenState extends State<MixerScreen> {
       service: widget.service,
       simulator: widget.simulator,
     );
+    ScreenAwakeService.start();
     _snapshots.load().then((_) {
       if (mounted) setState(() {});
     });
@@ -207,6 +209,7 @@ class _MixerScreenState extends State<MixerScreen> {
 
   @override
   void dispose() {
+    ScreenAwakeService.stop();
     _ctrl.dispose();
     widget.simulator?.stop();
     _faderScrollController.dispose();

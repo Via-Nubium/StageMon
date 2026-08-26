@@ -7,6 +7,7 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.os.Build
+import android.provider.Settings
 import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -33,6 +34,9 @@ class MainActivity : FlutterActivity() {
     private var pendingLayoutImport: String? = null
     private val layoutImportChannelName = "com.vianubium.stagemon/layout_import"
     private var layoutImportChannel: MethodChannel? = null
+
+    private val displayChannelName = "com.vianubium.stagemon/display"
+    private var displayChannel: MethodChannel? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -68,6 +72,18 @@ class MainActivity : FlutterActivity() {
         }
         layoutImportChannel = importCh
 
+        val displayCh = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            displayChannelName,
+        )
+        displayCh.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getScreenOffTimeout" -> result.success(getScreenOffTimeoutMs())
+                else -> result.notImplemented()
+            }
+        }
+        displayChannel = displayCh
+
         // Covers a cold start: the activity's own intent (the one that
         // launched it) is only available now that this method has run.
         handleIncomingIntent(intent)
@@ -99,6 +115,18 @@ class MainActivity : FlutterActivity() {
             runOnUiThread { layoutImportChannel?.invokeMethod("layoutImportAvailable", null) }
         } catch (e: Exception) {
             Log.e(TAG_IMPORT, "Failed to read shared layout file", e)
+        }
+    }
+
+    // The user's configured "Settings > Display > Screen timeout", in ms.
+    // Readable without any permission. Lets StageMon's own keep-awake dim
+    // approximate when the system would have dimmed/locked instead of using
+    // an arbitrary fixed delay.
+    private fun getScreenOffTimeoutMs(): Int {
+        return try {
+            Settings.System.getInt(contentResolver, Settings.System.SCREEN_OFF_TIMEOUT)
+        } catch (e: Settings.SettingNotFoundException) {
+            30000
         }
     }
 
