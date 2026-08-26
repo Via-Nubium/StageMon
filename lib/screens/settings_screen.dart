@@ -31,6 +31,9 @@ class SettingsScreen extends StatefulWidget {
   final Map<int, int?> busColors;
   final Map<int, int> consoleBusColors;
   final String consoleModel;
+  // See LayoutsScreen.initialImportContent — forwarded straight through so
+  // Settings opens directly on Layouts when arriving this way.
+  final String? pendingImportContent;
 
   const SettingsScreen({
     super.key,
@@ -53,6 +56,7 @@ class SettingsScreen extends StatefulWidget {
     required this.busColors,
     required this.consoleBusColors,
     required this.consoleModel,
+    this.pendingImportContent,
   });
 
   @override
@@ -86,6 +90,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _lineInColor = widget.lineInColor;
     _fxReturnColors = Map.of(widget.fxReturnColors);
     _busColors = Map.of(widget.busColors);
+    final pending = widget.pendingImportContent;
+    if (pending != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _openLayouts(initialImportContent: pending);
+      });
+    }
   }
 
   // The bus number a color is stored under: the pair's base when the
@@ -268,7 +278,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return _busLabel(_bus);
   }
 
-  Future<void> _openLayouts() async {
+  Future<void> _openLayouts({String? initialImportContent}) async {
     final result = await Navigator.push<SavedLayout>(
       context,
       MaterialPageRoute(
@@ -285,6 +295,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           fxReturnColors: _fxReturnColors,
           busColors: _busColors,
           consoleModel: widget.consoleModel,
+          initialImportContent: initialImportContent,
         ),
       ),
     );

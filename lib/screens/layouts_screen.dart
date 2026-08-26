@@ -1,4 +1,9 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:stagemon/l10n/app_localizations.dart';
 import '../models/group_fader_config.dart';
 import '../models/saved_layout.dart';
@@ -16,6 +21,11 @@ class LayoutsScreen extends StatefulWidget {
   final Map<int, int?> fxReturnColors;
   final Map<int, int?> busColors;
   final String consoleModel;
+  // Set when this screen was opened automatically because a .stagemonlayout
+  // file arrived via Android's "Open with" while disconnected/elsewhere in
+  // the app — see LayoutImportService. Runs the same import+load flow as
+  // tapping the file-picker button, just with the content already in hand.
+  final String? initialImportContent;
 
   const LayoutsScreen({
     super.key,
@@ -31,6 +41,7 @@ class LayoutsScreen extends StatefulWidget {
     required this.fxReturnColors,
     required this.busColors,
     required this.consoleModel,
+    this.initialImportContent,
   });
 
   @override
@@ -44,8 +55,11 @@ class _LayoutsScreenState extends State<LayoutsScreen> {
   @override
   void initState() {
     super.initState();
-    _manager.load().then((_) {
-      if (mounted) setState(() => _loaded = true);
+    _manager.load().then((_) async {
+      if (!mounted) return;
+      setState(() => _loaded = true);
+      final pending = widget.initialImportContent;
+      if (pending != null) await _applyImportedContent(pending);
     });
   }
 
@@ -133,31 +147,127 @@ class _LayoutsScreenState extends State<LayoutsScreen> {
     if (confirmed == true && mounted) Navigator.pop(context, layout);
   }
 
-  Future<void> _handleLongPress(int index) async {
+  // Written to the app's own temp dir (no storage permission needed) and
+  // handed to Android's share sheet, so the receiving device can pick it up
+  // however it likes (chat app, Drive, Bluetooth...). Extension is custom so
+  // the file is easy to tell apart from unrelated .json files when the
+  // receiving device later opens it with a file picker.
+  Future<void> _shareLayout(SavedLayout layout) async {
+    final dir = await getTemporaryDirectory();
+    final safeName = layout.name.trim().replaceAll(RegExp(r'[^\w\-. ]'), '_');
+    final file = File('${dir.path}/$safeName.stagemonlayout');
+    await file.writeAsString(jsonEncode(layout.toJson()));
+    if (!mounted) return;
+    await SharePlus.instance.share(
+      ShareParams(files: [XFile(file.path)], subject: layout.name),
+    );
+  }
+
+  // FileType.any rather than filtering by our custom extension: Android maps
+  // an unregistered extension to an unpredictable MIME type, which can make
+  // the system picker hide files that don't declare that exact MIME instead
+  // of filtering by extension. Content is validated after picking instead.
+  Future<void> _importLayout() async {
+    final result = await FilePicker.pickFiles(type: FileType.any);
+    final path = result?.files.single.path;
+    if (path == null) return;
+    String raw;
+    try {
+      raw = await File(path).readAsString();
+    } catch (_) {
+      // Not valid text (e.g. a binary file) — pass through so
+      // _applyImportedContent's own error handling shows the same dialog.
+      raw = '';
+    }
+    await _applyImportedContent(raw);
+  }
+
+  // Shared by the manual file-picker import and by a file opened via
+  // Android's "Open with" (LayoutImportService) — same validation, same
+  // add-then-offer-to-load flow either way.
+  Future<void> _applyImportedContent(String raw) async {
+    final l = AppLocalizations.of(context)!;
+    try {
+      final json = jsonDecode(raw);
+      final layout = SavedLayout.fromJson(json as Map<String, dynamic>);
+      await _manager.add(layout);
+      if (!mounted) return;
+      setState(() {});
+      await _loadLayout(layout);
+    } catch (_) {
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (d) => AlertDialog(
+          title: Text(l.importErrorTitle),
+          content: Text(l.importErrorBody),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(d), child: Text(l.ok)),
+          ],
+        ),
+      );
+    }
+  }
+
+  Future<void> _showActionsMenu(int index) async {
     final l = AppLocalizations.of(context)!;
     final layout = _manager.layouts[index];
-    final action = await showDialog<String>(
+    final action = await showModalBottomSheet<String>(
       context: context,
-      builder: (d) => SimpleDialog(
-        title: Text(layout.name),
-        children: [
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(d, 'overwrite'),
-            child: Text(l.saveLayout),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (d) => SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                child: Text(
+                  layout.name,
+                  style: Theme.of(context).textTheme.titleMedium,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.save_outlined),
+                title: Text(l.saveLayout),
+                onTap: () => Navigator.pop(d, 'overwrite'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.edit_outlined),
+                title: Text(l.rename),
+                onTap: () => Navigator.pop(d, 'rename'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.share_outlined),
+                title: Text(l.share),
+                onTap: () => Navigator.pop(d, 'share'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: Text(
+                  l.delete,
+                  style: const TextStyle(color: Colors.red),
+                ),
+                onTap: () => Navigator.pop(d, 'delete'),
+              ),
+              const SizedBox(height: 8),
+            ],
           ),
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(d, 'rename'),
-            child: Text(l.rename),
-          ),
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(d, 'delete'),
-            child: Text(l.delete, style: const TextStyle(color: Colors.red)),
-          ),
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(d),
-            child: Text(l.cancel),
-          ),
-        ],
+        ),
       ),
     );
     if (!mounted) return;
@@ -176,6 +286,8 @@ class _LayoutsScreenState extends State<LayoutsScreen> {
         );
         if (mounted) setState(() {});
       }
+    } else if (action == 'share') {
+      await _shareLayout(layout);
     } else if (action == 'delete') {
       await _manager.remove(index);
       if (mounted) setState(() {});
@@ -209,6 +321,11 @@ class _LayoutsScreenState extends State<LayoutsScreen> {
         title: Text(l.layoutsTitle),
         actions: [
           IconButton(
+            icon: const Icon(Icons.file_open_outlined),
+            tooltip: l.importLayout,
+            onPressed: _importLayout,
+          ),
+          IconButton(
             icon: const Icon(Icons.add),
             tooltip: l.saveCurrentState,
             onPressed: _saveCurrent,
@@ -230,12 +347,12 @@ class _LayoutsScreenState extends State<LayoutsScreen> {
                     _layoutSummary(l, layout),
                     style: const TextStyle(fontSize: 12),
                   ),
+                  onTap: () => _loadLayout(layout),
                   trailing: IconButton(
-                    icon: const Icon(Icons.download_rounded),
-                    tooltip: l.loadLayoutTooltip,
-                    onPressed: () => _loadLayout(layout),
+                    icon: const Icon(Icons.more_vert),
+                    tooltip: l.layoutActionsTooltip,
+                    onPressed: () => _showActionsMenu(i),
                   ),
-                  onLongPress: () => _handleLongPress(i),
                 );
               },
             ),

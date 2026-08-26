@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/osc_service.dart';
 import '../services/xr18_simulator.dart';
 import '../services/android_network_binder.dart';
+import '../services/layout_import_service.dart';
 import '../widgets/custom_fader.dart';
 import '../widgets/mute_button.dart';
 import '../widgets/pan_knob.dart';
@@ -90,11 +91,37 @@ class _MixerScreenState extends State<MixerScreen> {
   @override
   void initState() {
     super.initState();
-    _ctrl = MixerController(service: widget.service, simulator: widget.simulator);
+    _ctrl = MixerController(
+      service: widget.service,
+      simulator: widget.simulator,
+    );
     _snapshots.load().then((_) {
       if (mounted) setState(() {});
     });
     _loadPreferences();
+    LayoutImportService.listen(_checkPendingLayoutImport);
+    _checkPendingLayoutImport();
+  }
+
+  // Covers both a file that arrived while disconnected (cold start or the
+  // connect screen — picked up here once a console/simulator is chosen and
+  // this screen is finally created) and one that arrives while already
+  // connected (the push from LayoutImportService.listen wakes this up).
+  Future<void> _checkPendingLayoutImport() async {
+    final content = await LayoutImportService.takePending();
+    if (content == null || !mounted) return;
+    // If Settings/Layouts (or anything else) is already open on top of this
+    // screen, unwind back to it first — each screen's own normal pop
+    // handling flushes its state into MixerScreen as it goes, the same as
+    // if the user had pressed back that many times themselves. Without
+    // this, a stale Settings screen still underneath would later overwrite
+    // whatever the imported layout just applied when it's finally closed.
+    while (mounted && ModalRoute.of(context)?.isCurrent != true) {
+      final popped = await Navigator.of(context).maybePop();
+      if (!popped) break;
+    }
+    if (!mounted) return;
+    _openSettings(pendingImportContent: content);
   }
 
   void _loadPreferences() async {
@@ -287,7 +314,7 @@ class _MixerScreenState extends State<MixerScreen> {
     );
   }
 
-  void _openSettings() async {
+  void _openSettings({String? pendingImportContent}) async {
     final result =
         await Navigator.push<
           (
@@ -326,6 +353,7 @@ class _MixerScreenState extends State<MixerScreen> {
               busColors: _busColors,
               consoleBusColors: _ctrl.consoleBusColors,
               consoleModel: widget.consoleModel,
+              pendingImportContent: pendingImportContent,
             ),
           ),
         );

@@ -10,8 +10,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:launchMode="singleTop"
-            android:taskAffinity=""
+            android:launchMode="singleTask"
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
@@ -27,6 +26,61 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <!-- Lets StageMon show up in "Open with"/"Complete action using" for
+                 .stagemonlayout files shared from other apps (WhatsApp, email,
+                 Drive, a file manager...).
+
+                 content:// (WhatsApp, email, Drive...) matches
+                 mimeType="application/octet-stream" — the generic type apps
+                 like WhatsApp assign to an extension Android doesn't
+                 recognize. Confirmed on-device that content:// URIs from
+                 these apps don't preserve the filename anywhere in the URI
+                 (opaque IDs — by design, that's the whole point of the
+                 Storage Access Framework), so pathPattern can't discriminate
+                 here; matching by type is the only option. Deliberately NOT
+                 "*/*": the phone's own file explorer (MediaStore) sends VIEW
+                 intents for unrecognized extensions with no type at all,
+                 which "*/*" would also catch, making StageMon open directly
+                 (no chooser, since nothing else claims it) for literally any
+                 unrelated file — confirmed by comparing real installed apps
+                 with the same custom-extension need (checked via `adb shell
+                 dumpsys package <pkg>`): all of them scope content:// to
+                 application/octet-stream specifically, and none of them
+                 open from the file explorer either — this is the normal,
+                 expected trade-off, not something to work around. Anything
+                 StageMon can't parse as a layout gets rejected by
+                 _applyImportedContent's own validation in
+                 layouts_screen.dart, same as manual file-picker import.
+
+                 file:// URIs are the real filesystem path, so pathPattern
+                 does work there and narrows it to our own files.
+
+                 content and file are two SEPARATE <intent-filter> blocks, not
+                 two <data> tags in one: <data> tags within a single filter
+                 get merged into one shared set of paths/types, so file's
+                 pathPattern would also end up required for content — which
+                 defeats the point (confirmed on-device: WhatsApp stopped
+                 matching once that happened). Separate intent-filter blocks
+                 stay fully independent. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="content"
+                    android:host="*"
+                    android:mimeType="application/octet-stream"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="file"
+                    android:host="*"
+                    android:mimeType="*/*"
+                    android:pathPattern=".*\\.stagemonlayout"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

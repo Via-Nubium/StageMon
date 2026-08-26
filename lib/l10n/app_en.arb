@@ -353,8 +353,8 @@
     }
   },
 
-  "loadLayoutTooltip": "Load this layout",
-  "@loadLayoutTooltip": {},
+  "layoutActionsTooltip": "More options",
+  "@layoutActionsTooltip": {},
 
   "load": "Load",
   "@load": {},
@@ -368,6 +368,21 @@
       "name": {"type": "String"}
     }
   },
+
+  "share": "Share",
+  "@share": {},
+
+  "importLayout": "Import layout",
+  "@importLayout": {},
+
+  "importErrorTitle": "Couldn't import",
+  "@importErrorTitle": {},
+
+  "importErrorBody": "The chosen file isn't a valid StageMon layout.",
+  "@importErrorBody": {},
+
+  "ok": "OK",
+  "@ok": {},
 
   "busWillChangeNote": "The output bus will change.",
   "@busWillChangeNote": {},

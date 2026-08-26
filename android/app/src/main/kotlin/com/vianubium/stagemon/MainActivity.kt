@@ -1,6 +1,7 @@
 package com.vianubium.stagemon
 
 import android.content.Context
+import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -12,6 +13,7 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 private const val TAG = "StageMonNet"
+private const val TAG_IMPORT = "StageMonImport"
 
 // Binds the whole process to the current wifi network so OSC/UDP traffic to
 // the console keeps working even when Android's default-network scoring
@@ -20,6 +22,17 @@ class MainActivity : FlutterActivity() {
     private val channelName = "com.vianubium.stagemon/network"
     private var channel: MethodChannel? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
+
+    // Content of a .stagemonlayout file received via ACTION_VIEW (opened from
+    // WhatsApp, a file manager, etc.), waiting for the Dart side to ask for it.
+    // Pull-based rather than pushed eagerly: at the moment Android delivers the
+    // intent, the Flutter engine/Dart isolate may not be far enough along to
+    // have a listener registered yet (cold start), so a plain invokeMethod()
+    // could be silently dropped. Dart asks for this once it's actually ready
+    // to act on it (e.g. once connected to a console).
+    private var pendingLayoutImport: String? = null
+    private val layoutImportChannelName = "com.vianubium.stagemon/layout_import"
+    private var layoutImportChannel: MethodChannel? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -39,6 +52,54 @@ class MainActivity : FlutterActivity() {
             }
         }
         channel = ch
+
+        val importCh = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            layoutImportChannelName,
+        )
+        importCh.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getPendingLayoutImport" -> {
+                    result.success(pendingLayoutImport)
+                    pendingLayoutImport = null
+                }
+                else -> result.notImplemented()
+            }
+        }
+        layoutImportChannel = importCh
+
+        // Covers a cold start: the activity's own intent (the one that
+        // launched it) is only available now that this method has run.
+        handleIncomingIntent(intent)
+    }
+
+    // Android reuses this activity (launchMode="singleTop") instead of
+    // creating a new one when StageMon is already running, so a file opened
+    // while the app is alive arrives here instead of in onCreate/getIntent().
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIncomingIntent(intent)
+    }
+
+    private fun handleIncomingIntent(intent: Intent?) {
+        if (intent?.action != Intent.ACTION_VIEW) return
+        val uri = intent.data ?: return
+        Log.d(TAG_IMPORT, "handleIncomingIntent: uri=$uri type=${intent.type}")
+        try {
+            val content = contentResolver.openInputStream(uri)?.use { stream ->
+                stream.bufferedReader().readText()
+            }
+            if (content == null) {
+                Log.w(TAG_IMPORT, "Could not open stream for $uri")
+                return
+            }
+            pendingLayoutImport = content
+            Log.d(TAG_IMPORT, "Received layout file, ${content.length} chars")
+            runOnUiThread { layoutImportChannel?.invokeMethod("layoutImportAvailable", null) }
+        } catch (e: Exception) {
+            Log.e(TAG_IMPORT, "Failed to read shared layout file", e)
+        }
     }
 
     private fun connectivityManager(): ConnectivityManager =
