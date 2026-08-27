@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../services/osc_service.dart';
 import '../services/xr18_simulator.dart';
 
@@ -294,7 +293,6 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
     _setupFaderListeners(effectiveBus);
     _trackLineInFader();
     _trackBusFader();
-    SharedPreferences.getInstance().then((p) => p.setInt('selected_bus', _bus));
     if (!_disposed) notifyListeners();
   }
 

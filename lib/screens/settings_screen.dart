@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:stagemon/l10n/app_localizations.dart';
 import '../models/group_fader_config.dart';
 import '../models/channel_color.dart';
+import '../models/mixer_layout_state.dart';
 import '../utils/bus_title.dart';
 import '../widgets/bus_picker_sheet.dart';
 import '../widgets/channel_color_sheet.dart';
@@ -12,23 +13,13 @@ import 'group_config_screen.dart';
 import 'layouts_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
-  final Set<int> selectedChannels;
+  final MixerLayoutState layout;
   final Map<int, String> channelNames;
   final Map<int, String> busNames;
   final Map<int, bool> busLinked;
-  final bool showBusFader;
-  final int bus;
-  final List<GroupFaderConfig> groupConfigs;
-  final Set<int> selectedFxReturns;
-  final bool showLineIn;
-  final bool busAlwaysVisible;
-  final Map<int, int?> channelColors;
-  final int? lineInColor;
-  final Map<int, int?> fxReturnColors;
   final Map<int, int> consoleChannelColors;
   final int? consoleLineInColor;
   final Map<int, int> consoleFxReturnColors;
-  final Map<int, int?> busColors;
   final Map<int, int> consoleBusColors;
   final String consoleModel;
   // See LayoutsScreen.initialImportContent — forwarded straight through so
@@ -37,23 +28,13 @@ class SettingsScreen extends StatefulWidget {
 
   const SettingsScreen({
     super.key,
-    required this.selectedChannels,
+    required this.layout,
     required this.channelNames,
     required this.busNames,
     required this.busLinked,
-    required this.showBusFader,
-    required this.bus,
-    required this.groupConfigs,
-    required this.selectedFxReturns,
-    required this.showLineIn,
-    required this.busAlwaysVisible,
-    required this.channelColors,
-    required this.lineInColor,
-    required this.fxReturnColors,
     required this.consoleChannelColors,
     required this.consoleLineInColor,
     required this.consoleFxReturnColors,
-    required this.busColors,
     required this.consoleBusColors,
     required this.consoleModel,
     this.pendingImportContent,
@@ -64,32 +45,12 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  late Set<int> _selected;
-  late bool _showBusFader;
-  late int _bus;
-  late List<GroupFaderConfig> _groupConfigs;
-  late Set<int> _selectedFxReturns;
-  late bool _showLineIn;
-  late bool _busAlwaysVisible;
-  late Map<int, int?> _channelColors;
-  late int? _lineInColor;
-  late Map<int, int?> _fxReturnColors;
-  late Map<int, int?> _busColors;
+  late MixerLayoutState _state;
 
   @override
   void initState() {
     super.initState();
-    _selected = Set.of(widget.selectedChannels);
-    _showBusFader = widget.showBusFader;
-    _bus = widget.bus;
-    _groupConfigs = List.of(widget.groupConfigs);
-    _selectedFxReturns = Set.of(widget.selectedFxReturns);
-    _showLineIn = widget.showLineIn;
-    _busAlwaysVisible = widget.busAlwaysVisible;
-    _channelColors = Map.of(widget.channelColors);
-    _lineInColor = widget.lineInColor;
-    _fxReturnColors = Map.of(widget.fxReturnColors);
-    _busColors = Map.of(widget.busColors);
+    _state = widget.layout;
     final pending = widget.pendingImportContent;
     if (pending != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -100,7 +61,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // The bus number a color is stored under: the pair's base when the
   // current bus is linked, otherwise the bus itself.
-  int get _busColorKey => busColorKey(bus: _bus, busLinked: widget.busLinked);
+  int get _busColorKey =>
+      busColorKey(bus: _state.bus, busLinked: widget.busLinked);
 
   // Console color only — no override — to stay consistent with what the
   // bus picker sheet shows for every bus.
@@ -111,19 +73,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return ColorDot(background: color.background, foreground: color.foreground);
   }
 
-  void _pop() => Navigator.pop(context, (
-    _selected,
-    _showBusFader,
-    _bus,
-    _groupConfigs,
-    _selectedFxReturns,
-    _showLineIn,
-    _busAlwaysVisible,
-    _channelColors,
-    _lineInColor,
-    _fxReturnColors,
-    _busColors,
-  ));
+  void _pop() => Navigator.pop(context, _state);
 
   // Channels, then LINE, then FX returns, then group faders, then the aux
   // bus — the order the </> arrows in the color sheet step through,
@@ -134,37 +84,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
     for (var ch = 1; ch <= 16; ch++)
       ColorableFader(
         label: widget.channelNames[ch] ?? 'Ch ${ch.toString().padLeft(2, '0')}',
-        colorIndex: _channelColors[ch],
-        onChanged: (index) => setState(() => _channelColors[ch] = index),
+        colorIndex: _state.channelColors[ch],
+        onChanged: (index) => setState(() {
+          _state = _state.copyWith(
+            channelColors: {..._state.channelColors, ch: index},
+          );
+        }),
         consoleColorIndex: widget.consoleChannelColors[ch],
       ),
     ColorableFader(
       label: 'LINE',
-      colorIndex: _lineInColor,
-      onChanged: (index) => setState(() => _lineInColor = index),
+      colorIndex: _state.lineInColor,
+      onChanged: (index) =>
+          setState(() => _state = _state.copyWith(lineInColor: index)),
       consoleColorIndex: widget.consoleLineInColor,
     ),
     for (var rtn = 1; rtn <= 4; rtn++)
       ColorableFader(
         label: 'FX $rtn',
-        colorIndex: _fxReturnColors[rtn],
-        onChanged: (index) => setState(() => _fxReturnColors[rtn] = index),
+        colorIndex: _state.fxReturnColors[rtn],
+        onChanged: (index) => setState(() {
+          _state = _state.copyWith(
+            fxReturnColors: {..._state.fxReturnColors, rtn: index},
+          );
+        }),
         consoleColorIndex: widget.consoleFxReturnColors[rtn],
       ),
-    for (var i = 0; i < _groupConfigs.length; i++)
+    for (var i = 0; i < _state.groups.length; i++)
       ColorableFader(
-        label: _groupConfigs[i].name,
-        colorIndex: _groupConfigs[i].colorIndex,
+        label: _state.groups[i].name,
+        colorIndex: _state.groups[i].colorIndex,
         onChanged: (index) => setState(() {
-          _groupConfigs[i] = _groupConfigs[i].copyWith(colorIndex: index);
+          final groups = List<GroupFaderConfig>.of(_state.groups);
+          groups[i] = groups[i].copyWith(colorIndex: index);
+          _state = _state.copyWith(groups: groups);
         }),
         consoleColorIndex: null,
         allowConsoleSync: false,
       ),
     ColorableFader(
       label: _busFaderChipLabel(),
-      colorIndex: _busColors[_busColorKey],
-      onChanged: (index) => setState(() => _busColors[_busColorKey] = index),
+      colorIndex: _state.busColors[_busColorKey],
+      onChanged: (index) => setState(() {
+        _state = _state.copyWith(
+          busColors: {..._state.busColors, _busColorKey: index},
+        );
+      }),
       consoleColorIndex: widget.consoleBusColors[_busColorKey],
     ),
   ];
@@ -273,9 +238,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   String _currentBusLabel() {
     for (final o in _busOptions()) {
-      if (o.matches.contains(_bus)) return o.label;
+      if (o.matches.contains(_state.bus)) return o.label;
     }
-    return _busLabel(_bus);
+    return _busLabel(_state.bus);
   }
 
   Future<void> _openLayouts({String? initialImportContent}) async {
@@ -283,17 +248,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => LayoutsScreen(
-          selectedChannels: _selected,
-          showBusFader: _showBusFader,
-          bus: _bus,
-          groupConfigs: _groupConfigs,
-          selectedFxReturns: _selectedFxReturns,
-          showLineIn: _showLineIn,
-          busAlwaysVisible: _busAlwaysVisible,
-          channelColors: _channelColors,
-          lineInColor: _lineInColor,
-          fxReturnColors: _fxReturnColors,
-          busColors: _busColors,
+          layout: _state,
           consoleModel: widget.consoleModel,
           initialImportContent: initialImportContent,
         ),
@@ -301,17 +256,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     if (result != null && mounted) {
       setState(() {
-        _selected = Set.of(result.selectedChannels);
-        _showBusFader = result.showBusFader;
-        if (result.bus != null) _bus = result.bus!;
-        _groupConfigs = List.of(result.groupConfigs);
-        _selectedFxReturns = Set.of(result.selectedFxReturns);
-        _showLineIn = result.showLineIn;
-        _busAlwaysVisible = result.busAlwaysVisible;
-        _channelColors = Map.of(result.channelColors);
-        _lineInColor = result.lineInColor;
-        _fxReturnColors = Map.of(result.fxReturnColors);
-        _busColors = Map.of(result.busColors);
+        _state = MixerLayoutState(
+          // null means "leave the current bus alone" — see SavedLayout.bus.
+          bus: result.bus ?? _state.bus,
+          channels: result.selectedChannels,
+          channelColors: result.channelColors,
+          fxReturns: result.selectedFxReturns,
+          fxReturnColors: result.fxReturnColors,
+          lineInVisible: result.showLineIn,
+          lineInColor: result.lineInColor,
+          busFaderVisible: result.showBusFader,
+          busFaderPinned: result.busAlwaysVisible,
+          busColors: result.busColors,
+          groups: result.groupConfigs,
+        );
       });
     }
   }
@@ -320,8 +278,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showBusPickerSheet(
       context: context,
       options: _busOptions(),
-      selected: _bus,
-      onSelected: (v) => setState(() => _bus = v),
+      selected: _state.bus,
+      onSelected: (v) => setState(() => _state = _state.copyWith(bus: v)),
     );
   }
 
@@ -332,15 +290,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _pinChip() {
     final l = AppLocalizations.of(context)!;
     const accent = Color(0xFFE3A73B);
-    final enabled = _showBusFader;
-    final active = _busAlwaysVisible && enabled;
+    final enabled = _state.busFaderVisible;
+    final active = _state.busFaderPinned && enabled;
     return Opacity(
       opacity: enabled ? 1 : 0.4,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: enabled
-              ? () => setState(() => _busAlwaysVisible = !_busAlwaysVisible)
+              ? () => setState(
+                  () => _state = _state.copyWith(
+                    busFaderPinned: !_state.busFaderPinned,
+                  ),
+                )
               : null,
           borderRadius: BorderRadius.circular(16),
           child: Container(
@@ -381,7 +343,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   String _busFaderChipLabel() => busFaderTitle(
-    bus: _bus,
+    bus: _state.bus,
     busLinked: widget.busLinked,
     busNames: widget.busNames,
     l: AppLocalizations.of(context)!,
@@ -417,14 +379,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => GroupConfigScreen(
-          configs: _groupConfigs,
+          configs: _state.groups,
           groupIndex: index,
           channelNames: widget.channelNames,
         ),
       ),
     );
     if (result != null && mounted) {
-      setState(() => _groupConfigs = result);
+      setState(() => _state = _state.copyWith(groups: result));
     }
   }
 
@@ -531,11 +493,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 'Ch ${ch.toString().padLeft(2, '0')}';
                             return _colorableChip(
                               label: label,
-                              selected: _selected.contains(ch),
+                              selected: _state.channels.contains(ch),
                               onSelected: (on) => setState(() {
-                                on ? _selected.add(ch) : _selected.remove(ch);
+                                final channels = Set<int>.of(_state.channels);
+                                on ? channels.add(ch) : channels.remove(ch);
+                                _state = _state.copyWith(channels: channels);
                               }),
-                              colorIndex: _channelColors[ch],
+                              colorIndex: _state.channelColors[ch],
                               consoleColorIndex:
                                   widget.consoleChannelColors[ch],
                               onLongPress: () => _openColorSheet(ch - 1),
@@ -543,10 +507,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           }),
                           _colorableChip(
                             label: 'LINE',
-                            selected: _showLineIn,
-                            onSelected: (on) =>
-                                setState(() => _showLineIn = on),
-                            colorIndex: _lineInColor,
+                            selected: _state.lineInVisible,
+                            onSelected: (on) => setState(
+                              () => _state = _state.copyWith(
+                                lineInVisible: on,
+                              ),
+                            ),
+                            colorIndex: _state.lineInColor,
                             consoleColorIndex: widget.consoleLineInColor,
                             onLongPress: () => _openColorSheet(16),
                           ),
@@ -564,13 +531,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           final rtn = i + 1;
                           return _colorableChip(
                             label: 'FX $rtn',
-                            selected: _selectedFxReturns.contains(rtn),
+                            selected: _state.fxReturns.contains(rtn),
                             onSelected: (on) => setState(() {
+                              final fxReturns = Set<int>.of(_state.fxReturns);
                               on
-                                  ? _selectedFxReturns.add(rtn)
-                                  : _selectedFxReturns.remove(rtn);
+                                  ? fxReturns.add(rtn)
+                                  : fxReturns.remove(rtn);
+                              _state = _state.copyWith(fxReturns: fxReturns);
                             }),
-                            colorIndex: _fxReturnColors[rtn],
+                            colorIndex: _state.fxReturnColors[rtn],
                             consoleColorIndex:
                                 widget.consoleFxReturnColors[rtn],
                             onLongPress: () => _openColorSheet(16 + rtn),
@@ -580,8 +549,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     _hairline(),
                     _cardSubLabel(l.groupFaders),
-                    ...List.generate(_groupConfigs.length, (i) {
-                      final cfg = _groupConfigs[i];
+                    ...List.generate(_state.groups.length, (i) {
+                      final cfg = _state.groups[i];
                       final subtitle = cfg.memberCount == 0
                           ? l.noChannelsAssigned
                           : l.channelCount(cfg.memberCount);
@@ -606,8 +575,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     label: cfg.name,
                                     selected: cfg.visible,
                                     onSelected: (on) => setState(() {
-                                      _groupConfigs[i] = cfg.copyWith(
-                                        visible: on,
+                                      final groups = List<GroupFaderConfig>.of(
+                                        _state.groups,
+                                      );
+                                      groups[i] = cfg.copyWith(visible: on);
+                                      _state = _state.copyWith(
+                                        groups: groups,
                                       );
                                     }),
                                     colorIndex: cfg.colorIndex,
@@ -645,10 +618,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           Flexible(
                             child: _colorableChip(
                               label: 'MASTER',
-                              selected: _showBusFader,
-                              onSelected: (on) =>
-                                  setState(() => _showBusFader = on),
-                              colorIndex: _busColors[_busColorKey],
+                              selected: _state.busFaderVisible,
+                              onSelected: (on) => setState(
+                                () => _state = _state.copyWith(
+                                  busFaderVisible: on,
+                                ),
+                              ),
+                              colorIndex: _state.busColors[_busColorKey],
                               consoleColorIndex:
                                   widget.consoleBusColors[_busColorKey],
                               onLongPress: () => _openColorSheet(

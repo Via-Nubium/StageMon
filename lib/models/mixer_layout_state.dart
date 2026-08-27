@@ -2,6 +2,14 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'group_fader_config.dart';
 
+// Sentinel default for MixerLayoutState.copyWith's lineInColor parameter —
+// see the doc comment there.
+class _Unset {
+  const _Unset();
+}
+
+const _unset = _Unset();
+
 /// Everything that makes up "what the mixer screen is showing": which
 /// faders are visible, their local color overrides, and the selected bus.
 /// This is the one place these 11 fields are declared — it used to be
@@ -48,7 +56,9 @@ class MixerLayoutState {
 
   factory MixerLayoutState.defaults() => MixerLayoutState(
     bus: 1,
-    channels: {},
+    // All 16 channels start visible — matches the field initializer a
+    // fresh _MixerScreenState used before this class existed.
+    channels: {for (var ch = 1; ch <= 16; ch++) ch},
     channelColors: {},
     fxReturns: {},
     fxReturnColors: {},
@@ -60,10 +70,13 @@ class MixerLayoutState {
     groups: GroupFaderConfig.defaultConfigs(),
   );
 
-  // Note: like GroupFaderConfig.copyWith, this can't explicitly clear
-  // lineInColor back to null (a null argument reads as "unchanged"). None
-  // of the current call sites need that; construct a new instance directly
-  // if one ever does.
+  // lineInColor needs to distinguish "leave it alone" from "clear the
+  // override back to the console color" (a real, exercised action — the
+  // "console color" swatch in channel_color_sheet.dart calls
+  // onChanged(null)). A plain `int? lineInColor` parameter can't tell those
+  // apart, since null would mean both. _unset is the sentinel default, so
+  // an omitted argument leaves lineInColor untouched while an explicit
+  // `copyWith(lineInColor: null)` clears it.
   MixerLayoutState copyWith({
     int? bus,
     Set<int>? channels,
@@ -71,7 +84,7 @@ class MixerLayoutState {
     Set<int>? fxReturns,
     Map<int, int?>? fxReturnColors,
     bool? lineInVisible,
-    int? lineInColor,
+    Object? lineInColor = _unset,
     bool? busFaderVisible,
     bool? busFaderPinned,
     Map<int, int?>? busColors,
@@ -83,7 +96,9 @@ class MixerLayoutState {
     fxReturns: fxReturns ?? this.fxReturns,
     fxReturnColors: fxReturnColors ?? this.fxReturnColors,
     lineInVisible: lineInVisible ?? this.lineInVisible,
-    lineInColor: lineInColor ?? this.lineInColor,
+    lineInColor: identical(lineInColor, _unset)
+        ? this.lineInColor
+        : lineInColor as int?,
     busFaderVisible: busFaderVisible ?? this.busFaderVisible,
     busFaderPinned: busFaderPinned ?? this.busFaderPinned,
     busColors: busColors ?? this.busColors,

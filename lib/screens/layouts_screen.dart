@@ -5,21 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:stagemon/l10n/app_localizations.dart';
-import '../models/group_fader_config.dart';
+import '../models/mixer_layout_state.dart';
 import '../models/saved_layout.dart';
 
 class LayoutsScreen extends StatefulWidget {
-  final Set<int> selectedChannels;
-  final bool showBusFader;
-  final int bus;
-  final List<GroupFaderConfig> groupConfigs;
-  final Set<int> selectedFxReturns;
-  final bool showLineIn;
-  final bool busAlwaysVisible;
-  final Map<int, int?> channelColors;
-  final int? lineInColor;
-  final Map<int, int?> fxReturnColors;
-  final Map<int, int?> busColors;
+  final MixerLayoutState layout;
   final String consoleModel;
   // Set when this screen was opened automatically because a .stagemonlayout
   // file arrived via Android's "Open with" while disconnected/elsewhere in
@@ -29,17 +19,7 @@ class LayoutsScreen extends StatefulWidget {
 
   const LayoutsScreen({
     super.key,
-    required this.selectedChannels,
-    required this.showBusFader,
-    required this.bus,
-    required this.groupConfigs,
-    required this.selectedFxReturns,
-    required this.showLineIn,
-    required this.busAlwaysVisible,
-    required this.channelColors,
-    required this.lineInColor,
-    required this.fxReturnColors,
-    required this.busColors,
+    required this.layout,
     required this.consoleModel,
     this.initialImportContent,
   });
@@ -63,20 +43,23 @@ class _LayoutsScreenState extends State<LayoutsScreen> {
     });
   }
 
+  // Translates the unified layout state to SavedLayout's own (still
+  // separate) fields — SavedLayout keeps its v1 shape until stage 1d wraps
+  // a MixerLayoutState directly.
   SavedLayout _currentAsLayout(String name, {required bool includeBus}) =>
       SavedLayout(
         name: name,
-        selectedChannels: Set.of(widget.selectedChannels),
-        showBusFader: widget.showBusFader,
-        bus: includeBus ? widget.bus : null,
-        groupConfigs: List.of(widget.groupConfigs),
-        selectedFxReturns: Set.of(widget.selectedFxReturns),
-        showLineIn: widget.showLineIn,
-        busAlwaysVisible: widget.busAlwaysVisible,
-        channelColors: Map.of(widget.channelColors),
-        lineInColor: widget.lineInColor,
-        fxReturnColors: Map.of(widget.fxReturnColors),
-        busColors: Map.of(widget.busColors),
+        selectedChannels: Set.of(widget.layout.channels),
+        showBusFader: widget.layout.busFaderVisible,
+        bus: includeBus ? widget.layout.bus : null,
+        groupConfigs: List.of(widget.layout.groups),
+        selectedFxReturns: Set.of(widget.layout.fxReturns),
+        showLineIn: widget.layout.lineInVisible,
+        busAlwaysVisible: widget.layout.busFaderPinned,
+        channelColors: Map.of(widget.layout.channelColors),
+        lineInColor: widget.layout.lineInColor,
+        fxReturnColors: Map.of(widget.layout.fxReturnColors),
+        busColors: Map.of(widget.layout.busColors),
         consoleModel: widget.consoleModel,
       );
 
@@ -110,7 +93,7 @@ class _LayoutsScreenState extends State<LayoutsScreen> {
 
   Future<void> _loadLayout(SavedLayout layout) async {
     final l = AppLocalizations.of(context)!;
-    final busWillChange = layout.bus != null && layout.bus != widget.bus;
+    final busWillChange = layout.bus != null && layout.bus != widget.layout.bus;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (d) => AlertDialog(

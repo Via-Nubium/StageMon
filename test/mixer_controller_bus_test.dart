@@ -141,11 +141,8 @@ void main() {
     });
   });
 
-  test('the selected bus is persisted for the next launch', () async {
-    ctrl.changeBus(4);
-    // changeBus fires the write without awaiting it.
-    await Future<void>.delayed(Duration.zero);
-    final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getInt('selected_bus'), 4);
-  });
+  // changeBus itself no longer persists the bus — that moved to
+  // MixerLayoutState, which the screen saves as part of the unified layout
+  // blob (see test/mixer_layout_state_test.dart's saveToPrefs/loadFromPrefs
+  // round trip, and the MixerLayoutState refactor spec's "trampa 1").
 }

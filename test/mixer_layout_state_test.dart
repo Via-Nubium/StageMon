@@ -103,13 +103,45 @@ void main() {
     expect(back.bus, 4);
   });
 
+  group('copyWith', () {
+    test('an omitted lineInColor leaves the existing value untouched', () {
+      final state = buildState(); // lineInColor: 5
+      final back = state.copyWith(busFaderPinned: false);
+      expect(back.lineInColor, 5);
+    });
+
+    test('an explicit null lineInColor clears it', () {
+      // The channel color sheet's "use console color" swatch does exactly
+      // this (onChanged(null)) to drop a local override.
+      final state = buildState(); // lineInColor: 5
+      final back = state.copyWith(lineInColor: null);
+      expect(back.lineInColor, isNull);
+    });
+
+    test('an explicit non-null lineInColor replaces it', () {
+      final state = buildState();
+      final back = state.copyWith(lineInColor: 9);
+      expect(back.lineInColor, 9);
+    });
+
+    test('other fields are left alone', () {
+      final state = buildState();
+      final back = state.copyWith(lineInColor: null);
+      expect(back.bus, state.bus);
+      expect(back.channels, state.channels);
+      expect(back.busFaderPinned, state.busFaderPinned);
+    });
+  });
+
   test('an empty store loads as defaults()', () async {
     SharedPreferences.setMockInitialValues({});
     final state = await MixerLayoutState.loadFromPrefs();
     final defaults = MixerLayoutState.defaults();
 
     expect(state.bus, defaults.bus);
-    expect(state.channels, isEmpty);
+    // All 16 channels start visible, matching the pre-refactor field
+    // initializer in _MixerScreenState.
+    expect(state.channels, {for (var ch = 1; ch <= 16; ch++) ch});
     expect(state.fxReturns, isEmpty);
     expect(state.lineInVisible, isFalse);
     expect(state.busFaderVisible, isTrue);
@@ -213,7 +245,7 @@ void main() {
         corrupt('channels', 'garbage'),
         fallbackBus: 1,
       );
-      expect(back.channels, isEmpty);
+      expect(back.channels, {for (var ch = 1; ch <= 16; ch++) ch});
       expect(back.channelColors, isEmpty);
       expectRestSurvive(back, except: {'channels', 'channelColors'});
     });

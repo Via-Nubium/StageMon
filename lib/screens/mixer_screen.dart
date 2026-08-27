@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show HitTestResult, RenderMetaData;
@@ -14,7 +13,7 @@ import '../widgets/mute_button.dart';
 import '../widgets/pan_knob.dart';
 import '../widgets/group_fader.dart';
 import '../models/snapshot_manager.dart';
-import '../models/group_fader_config.dart';
+import '../models/mixer_layout_state.dart';
 import '../controllers/mixer_controller.dart';
 import '../utils/bus_title.dart';
 import 'settings_screen.dart';
@@ -49,33 +48,7 @@ class _TrackedPointer {
 
 class _MixerScreenState extends State<MixerScreen> {
   late final MixerController _ctrl;
-  Set<int> _selectedChannels = {
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-    7,
-    8,
-    9,
-    10,
-    11,
-    12,
-    13,
-    14,
-    15,
-    16,
-  };
-  Set<int> _selectedFxReturns = {};
-  bool _showBusFader = true;
-  bool _showLineIn = false;
-  bool _busAlwaysVisible = false;
-  Map<int, int?> _channelColors = {};
-  int? _lineInColor;
-  Map<int, int?> _fxReturnColors = {};
-  Map<int, int?> _busColors = {};
-  List<GroupFaderConfig> _groupConfigs = GroupFaderConfig.defaultConfigs();
+  MixerLayoutState _layout = MixerLayoutState.defaults();
   final SnapshotManager _snapshots = SnapshotManager();
 
   // ── Pinch-to-resize / scroll / fader-drag: unified pointer owner ────────
@@ -412,82 +385,17 @@ class _MixerScreenState extends State<MixerScreen> {
   void _loadPreferences() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
-    final savedBus = prefs.getInt('selected_bus') ?? 1;
-    final savedChannelsList = prefs.getStringList('selected_channels');
-    final savedShowBus = prefs.getBool('show_bus_fader') ?? true;
-    final savedGroups = prefs.getString('group_faders_v1');
-    final savedFxReturnsList = prefs.getStringList('selected_fx_returns');
-    final savedShowLineIn = prefs.getBool('show_line_in') ?? false;
-    final savedBusAlwaysVisible = prefs.getBool('bus_always_visible') ?? false;
     final savedFaderWidth = prefs.getDouble('fader_width');
-    final savedChannelColors = prefs.getString('channel_colors_v1');
-    final savedLineInColor = prefs.getString('line_in_color_v1');
-    final savedFxReturnColors = prefs.getString('fx_return_colors_v1');
-    final savedBusColors = prefs.getString('bus_colors_v1');
     if (savedFaderWidth != null) {
       setState(
         () =>
             _faderWidth = savedFaderWidth.clamp(_minFaderWidth, _maxFaderWidth),
       );
     }
-    if (savedChannelsList != null) {
-      setState(
-        () => _selectedChannels = savedChannelsList.map(int.parse).toSet(),
-      );
-    }
-    if (savedFxReturnsList != null) {
-      setState(
-        () => _selectedFxReturns = savedFxReturnsList.map(int.parse).toSet(),
-      );
-    }
-    setState(() {
-      _showBusFader = savedShowBus;
-      _showLineIn = savedShowLineIn;
-      _busAlwaysVisible = savedBusAlwaysVisible;
-    });
-    if (savedGroups != null) {
-      try {
-        setState(
-          () => _groupConfigs = GroupFaderConfig.fromJsonList(savedGroups),
-        );
-      } catch (_) {}
-    }
-    if (savedChannelColors != null) {
-      try {
-        final decoded = jsonDecode(savedChannelColors) as Map<String, dynamic>;
-        setState(
-          () => _channelColors = decoded.map(
-            (k, v) => MapEntry(int.parse(k), v as int?),
-          ),
-        );
-      } catch (_) {}
-    }
-    if (savedLineInColor != null) {
-      try {
-        setState(() => _lineInColor = jsonDecode(savedLineInColor) as int?);
-      } catch (_) {}
-    }
-    if (savedFxReturnColors != null) {
-      try {
-        final decoded = jsonDecode(savedFxReturnColors) as Map<String, dynamic>;
-        setState(
-          () => _fxReturnColors = decoded.map(
-            (k, v) => MapEntry(int.parse(k), v as int?),
-          ),
-        );
-      } catch (_) {}
-    }
-    if (savedBusColors != null) {
-      try {
-        final decoded = jsonDecode(savedBusColors) as Map<String, dynamic>;
-        setState(
-          () => _busColors = decoded.map(
-            (k, v) => MapEntry(int.parse(k), v as int?),
-          ),
-        );
-      } catch (_) {}
-    }
-    if (savedBus != _ctrl.bus) _ctrl.changeBus(savedBus);
+    final loaded = await MixerLayoutState.loadFromPrefs(fallbackBus: _ctrl.bus);
+    if (!mounted) return;
+    setState(() => _layout = loaded);
+    if (loaded.bus != _ctrl.bus) _ctrl.changeBus(loaded.bus);
   }
 
   @override
@@ -512,14 +420,14 @@ class _MixerScreenState extends State<MixerScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => GroupDetailScreen(
-          configs: _groupConfigs,
+          configs: _layout.groups,
           groupIndex: groupIndex,
           busNum: _ctrl.effectiveBus,
           busPaired: _ctrl.busPaired,
           channelNames: _ctrl.channelNames,
-          channelColors: _channelColors,
-          lineInColor: _lineInColor,
-          fxReturnColors: _fxReturnColors,
+          channelColors: _layout.channelColors,
+          lineInColor: _layout.lineInColor,
+          fxReturnColors: _layout.fxReturnColors,
           consoleChannelColors: _ctrl.consoleChannelColors,
           consoleLineInColor: _ctrl.consoleLineInColor,
           consoleFxReturnColors: _ctrl.consoleFxReturnColors,
@@ -530,13 +438,8 @@ class _MixerScreenState extends State<MixerScreen> {
           lineInMeterL: _ctrl.lineInMeterL,
           lineInMeterR: _ctrl.lineInMeterR,
           onConfigsChanged: (newConfigs) {
-            setState(() => _groupConfigs = newConfigs);
-            SharedPreferences.getInstance().then(
-              (p) => p.setString(
-                'group_faders_v1',
-                GroupFaderConfig.toJsonList(newConfigs),
-              ),
-            );
+            setState(() => _layout = _layout.copyWith(groups: newConfigs));
+            _layout.saveToPrefs();
           },
         ),
       ),
@@ -544,89 +447,27 @@ class _MixerScreenState extends State<MixerScreen> {
   }
 
   void _openSettings({String? pendingImportContent}) async {
-    final result =
-        await Navigator.push<
-          (
-            Set<int>,
-            bool,
-            int,
-            List<GroupFaderConfig>,
-            Set<int>,
-            bool,
-            bool,
-            Map<int, int?>,
-            int?,
-            Map<int, int?>,
-            Map<int, int?>,
-          )
-        >(
-          context,
-          MaterialPageRoute(
-            builder: (_) => SettingsScreen(
-              selectedChannels: _selectedChannels,
-              channelNames: _ctrl.channelNames,
-              busNames: _ctrl.busNames,
-              busLinked: _ctrl.busLinked,
-              showBusFader: _showBusFader,
-              bus: _ctrl.bus,
-              groupConfigs: _groupConfigs,
-              selectedFxReturns: _selectedFxReturns,
-              showLineIn: _showLineIn,
-              busAlwaysVisible: _busAlwaysVisible,
-              channelColors: _channelColors,
-              lineInColor: _lineInColor,
-              fxReturnColors: _fxReturnColors,
-              consoleChannelColors: _ctrl.consoleChannelColors,
-              consoleLineInColor: _ctrl.consoleLineInColor,
-              consoleFxReturnColors: _ctrl.consoleFxReturnColors,
-              busColors: _busColors,
-              consoleBusColors: _ctrl.consoleBusColors,
-              consoleModel: widget.consoleModel,
-              pendingImportContent: pendingImportContent,
-            ),
-          ),
-        );
+    final result = await Navigator.push<MixerLayoutState>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SettingsScreen(
+          layout: _layout,
+          channelNames: _ctrl.channelNames,
+          busNames: _ctrl.busNames,
+          busLinked: _ctrl.busLinked,
+          consoleChannelColors: _ctrl.consoleChannelColors,
+          consoleLineInColor: _ctrl.consoleLineInColor,
+          consoleFxReturnColors: _ctrl.consoleFxReturnColors,
+          consoleBusColors: _ctrl.consoleBusColors,
+          consoleModel: widget.consoleModel,
+          pendingImportContent: pendingImportContent,
+        ),
+      ),
+    );
     if (result != null && mounted) {
-      _ctrl.changeBus(result.$3);
-      setState(() {
-        _selectedChannels = result.$1;
-        _showBusFader = result.$2;
-        _groupConfigs = result.$4;
-        _selectedFxReturns = result.$5;
-        _showLineIn = result.$6;
-        _busAlwaysVisible = result.$7;
-        _channelColors = result.$8;
-        _lineInColor = result.$9;
-        _fxReturnColors = result.$10;
-        _busColors = result.$11;
-      });
-      SharedPreferences.getInstance().then((p) {
-        p.setStringList(
-          'selected_channels',
-          result.$1.map((e) => e.toString()).toList(),
-        );
-        p.setBool('show_bus_fader', result.$2);
-        p.setString('group_faders_v1', GroupFaderConfig.toJsonList(result.$4));
-        p.setStringList(
-          'selected_fx_returns',
-          result.$5.map((e) => e.toString()).toList(),
-        );
-        p.setBool('show_line_in', result.$6);
-        p.setBool('bus_always_visible', result.$7);
-        p.setString(
-          'channel_colors_v1',
-          jsonEncode(result.$8.map((k, v) => MapEntry(k.toString(), v))),
-        );
-        p.setString('line_in_color_v1', jsonEncode(result.$9));
-        p.setString(
-          'fx_return_colors_v1',
-          jsonEncode(result.$10.map((k, v) => MapEntry(k.toString(), v))),
-        );
-        p.setString(
-          'bus_colors_v1',
-          jsonEncode(result.$11.map((k, v) => MapEntry(k.toString(), v))),
-        );
-      });
+      _ctrl.changeBus(result.bus);
+      setState(() => _layout = result);
+      _layout.saveToPrefs();
     }
   }
 
@@ -658,8 +499,8 @@ class _MixerScreenState extends State<MixerScreen> {
   }
 
   void _restoreSnapshot(FaderSnapshot snapshot) {
-    final channelsToRestore = Set<int>.from(_selectedChannels);
-    for (final group in _groupConfigs) {
+    final channelsToRestore = Set<int>.from(_layout.channels);
+    for (final group in _layout.groups) {
       if (group.visible) channelsToRestore.addAll(group.channels);
     }
     for (final ch in channelsToRestore) {
@@ -671,7 +512,7 @@ class _MixerScreenState extends State<MixerScreen> {
       }
     }
     for (int rtn = 1; rtn <= 4; rtn++) {
-      if (!_selectedFxReturns.contains(rtn)) continue;
+      if (!_layout.fxReturns.contains(rtn)) continue;
       final value = snapshot.fxReturnValues[rtn];
       if (value != null) _ctrl.service.send(_ctrl.fxReturnAddress(rtn), value);
       if (_ctrl.busPaired) {
@@ -679,7 +520,7 @@ class _MixerScreenState extends State<MixerScreen> {
         if (pan != null) _ctrl.service.send(_ctrl.fxReturnPanAddress(rtn), pan);
       }
     }
-    if (_showLineIn) {
+    if (_layout.lineInVisible) {
       if (snapshot.lineInLevel != null) {
         _ctrl.service.send(_ctrl.lineInAddress(), snapshot.lineInLevel!);
       }
@@ -687,7 +528,7 @@ class _MixerScreenState extends State<MixerScreen> {
         _ctrl.service.send(_ctrl.lineInPanAddress(), snapshot.lineInPan!);
       }
     }
-    if (_showBusFader) {
+    if (_layout.busFaderVisible) {
       if (snapshot.busLevel != null) {
         _ctrl.service.send(_ctrl.busFaderAddress(), snapshot.busLevel!);
       }
@@ -976,21 +817,21 @@ class _MixerScreenState extends State<MixerScreen> {
           busLinked: _ctrl.busLinked,
         );
         final busFaderColorIndex =
-            _busColors[busFaderColorKey] ??
+            _layout.busColors[busFaderColorKey] ??
             _ctrl.consoleBusColors[busFaderColorKey] ??
             0;
-        final channels = _selectedChannels.toList()..sort();
-        final visibleFxReturns = _selectedFxReturns.toList()..sort();
-        final visibleGroups = _groupConfigs
+        final channels = _layout.channels.toList()..sort();
+        final visibleFxReturns = _layout.fxReturns.toList()..sort();
+        final visibleGroups = _layout.groups
             .asMap()
             .entries
             .where((e) => e.value.visible)
             .toList();
-        final busPinned = _showBusFader && _busAlwaysVisible;
-        final busInline = _showBusFader && !busPinned;
+        final busPinned = _layout.busFaderVisible && _layout.busFaderPinned;
+        final busInline = _layout.busFaderVisible && !busPinned;
         _pruneFaderControllers([
           ...channels,
-          if (_showLineIn) 'line_in',
+          if (_layout.lineInVisible) 'line_in',
           ...visibleFxReturns.map((r) => 'fxrtn_$r'),
           ...visibleGroups.map((e) => 'group_${e.key}'),
           if (busInline) 'bus',
@@ -1000,7 +841,7 @@ class _MixerScreenState extends State<MixerScreen> {
         // on screen.
         _stripScalableColumns =
             channels.length +
-            (_showLineIn ? 1 : 0) +
+            (_layout.lineInVisible ? 1 : 0) +
             visibleFxReturns.length +
             visibleGroups.length;
         _stripFixedWidth =
@@ -1204,7 +1045,7 @@ class _MixerScreenState extends State<MixerScreen> {
                                             meterLevel:
                                                 _ctrl.meterLevels[ch - 1],
                                             nameColorIndex:
-                                                _channelColors[ch] ??
+                                                _layout.channelColors[ch] ??
                                                 _ctrl
                                                     .consoleChannelColors[ch] ??
                                                 0,
@@ -1219,7 +1060,7 @@ class _MixerScreenState extends State<MixerScreen> {
                                     ),
                                   ),
                                 ),
-                                if (_showLineIn) ...[
+                                if (_layout.lineInVisible) ...[
                                   SizedBox(
                                     key: const ValueKey('line_in'),
                                     width: _faderWidth,
@@ -1251,7 +1092,7 @@ class _MixerScreenState extends State<MixerScreen> {
                                             meterLevel: _ctrl.lineInMeterL,
                                             meterLevelRight: _ctrl.lineInMeterR,
                                             nameColorIndex:
-                                                _lineInColor ??
+                                                _layout.lineInColor ??
                                                 _ctrl.consoleLineInColor ??
                                                 0,
                                             controller: _faderControllers
@@ -1300,7 +1141,7 @@ class _MixerScreenState extends State<MixerScreen> {
                                             meterLevelRight:
                                                 _ctrl.fxReturnMeterR[rtn - 1],
                                             nameColorIndex:
-                                                _fxReturnColors[rtn] ??
+                                                _layout.fxReturnColors[rtn] ??
                                                 _ctrl
                                                     .consoleFxReturnColors[rtn] ??
                                                 0,
