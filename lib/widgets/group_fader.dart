@@ -17,12 +17,12 @@ class GroupFader extends StatefulWidget {
   final OscService service;
   // Index into kChannelColors for this group's name background/text.
   final int nameColorIndex;
-  // Lets a parent screen (e.g. a pinch-to-resize gesture) veto starting a
-  // vertical drag, and be told when one starts/ends so it can do the same
-  // in reverse.
-  final bool Function()? isPinchActive;
-  final VoidCallback? onDragActiveStart;
-  final VoidCallback? onDragActiveEnd;
+  // When set, this fader is driven externally (mixer_screen's unified
+  // pointer owner) instead of by its own GestureDetector — see
+  // FaderDragController in custom_fader.dart. Null keeps this widget's own
+  // self-contained gesture handling (unused today, but kept symmetric with
+  // CustomFader in case a future standalone use appears).
+  final FaderDragController? controller;
 
   const GroupFader({
     super.key,
@@ -33,9 +33,7 @@ class GroupFader extends StatefulWidget {
     required this.busNum,
     required this.service,
     required this.nameColorIndex,
-    this.isPinchActive,
-    this.onDragActiveStart,
-    this.onDragActiveEnd,
+    this.controller,
   });
 
   @override
@@ -60,6 +58,9 @@ class _GroupFaderState extends State<GroupFader> {
   // touches down, with zero real movement — so onDragActiveStart is
   // deferred until genuine vertical intent is shown.
   static const double _kDragIntentThreshold = 6.0;
+  // Latest LayoutBuilder height, kept around for the controller-driven
+  // callbacks below, which run outside that builder's own closure.
+  double _paintHeight = 0;
 
   Set<int> _subscribedKeys = {};
   int _subscribedBus = -1;
@@ -94,6 +95,11 @@ class _GroupFaderState extends State<GroupFader> {
   void initState() {
     super.initState();
     _refreshSubscriptions();
+    widget.controller?.bind(
+      onStart: _onControllerDragStart,
+      onUpdate: _onControllerDragUpdate,
+      onEnd: _onControllerDragEnd,
+    );
   }
 
   @override
@@ -103,6 +109,14 @@ class _GroupFaderState extends State<GroupFader> {
     if (widget.busNum != _subscribedBus ||
         !setEquals(newKeys, _subscribedKeys)) {
       _refreshSubscriptions();
+    }
+    if (old.controller != widget.controller) {
+      old.controller?.unbind();
+      widget.controller?.bind(
+        onStart: _onControllerDragStart,
+        onUpdate: _onControllerDragUpdate,
+        onEnd: _onControllerDragEnd,
+      );
     }
   }
 
@@ -146,6 +160,7 @@ class _GroupFaderState extends State<GroupFader> {
   @override
   void dispose() {
     _unsubscribeAll();
+    widget.controller?.unbind();
     super.dispose();
   }
 
@@ -166,7 +181,6 @@ class _GroupFaderState extends State<GroupFader> {
   }
 
   void _onDragStart(DragStartDetails d) {
-    if (widget.isPinchActive?.call() == true) return;
     _isDragging = true;
     _signaledDragActive = false;
     _dragStartValues = Map.of(_memberValues);
@@ -178,24 +192,49 @@ class _GroupFaderState extends State<GroupFader> {
     if (!_isDragging) return;
     final dy = d.localPosition.dy - _dragStartY!;
     if (!_signaledDragActive) {
-      if (widget.isPinchActive?.call() == true) {
-        _isDragging = false;
-        return;
-      }
       if (dy.abs() < _kDragIntentThreshold) return;
       _signaledDragActive = true;
       // Lock in the offset at the exact moment of crossing, so the fader
       // starts moving from zero right here instead of jumping by however
       // far the finger already traveled through the dead zone.
       _dragActivationDy = dy;
-      widget.onDragActiveStart?.call();
     }
+    _applyDrag(dy - _dragActivationDy, height);
+  }
+
+  void _onDragEnd(DragEndDetails _) {
+    if (!_isDragging) return;
+    _isDragging = false;
+    _flushPending();
+  }
+
+  // ── Controller-driven path (mixer_screen's unified pointer owner) ────────
+  // Same value math as above, but the axis-lock/dead-zone decision already
+  // happened in the parent before FaderDragController.startDrag was called,
+  // so there's nothing to re-check here.
+
+  void _onControllerDragStart() {
+    _isDragging = true;
+    _dragStartValues = Map.of(_memberValues);
+    _dragStartDisplayValue = _displayValue;
+  }
+
+  void _onControllerDragUpdate(double effectiveDy) =>
+      _applyDrag(effectiveDy, _paintHeight);
+
+  void _onControllerDragEnd() {
+    _isDragging = false;
+    _flushPending();
+  }
+
+  // Shared by both paths above: turns a vertical delta into the multi-channel
+  // dB shift and applies/sends it.
+  void _applyDrag(double effectiveDy, double height) {
     const kKnobH = 26.0;
     const kPad = 2.0;
     final travel = height - kKnobH - kPad * 2;
     if (travel <= 0) return;
 
-    final effectiveDy = dy - _dragActivationDy;
     final rawDisplayFloat = (_dragStartDisplayValue! - effectiveDy / travel)
         .clamp(0.0, 1.0);
 
@@ -226,10 +265,7 @@ class _GroupFaderState extends State<GroupFader> {
     }
   }
 
-  void _onDragEnd(DragEndDetails _) {
-    if (!_isDragging) return;
-    _isDragging = false;
-    if (_signaledDragActive) widget.onDragActiveEnd?.call();
+  void _flushPending() {
     for (final key in _allMemberKeys()) {
       final v = _pendingValues[key];
       if (v != null) {
@@ -283,6 +319,30 @@ class _GroupFaderState extends State<GroupFader> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final h = constraints.maxHeight;
+              _paintHeight = h;
+              final paint = RepaintBoundary(
+                child: CustomPaint(
+                  painter: FaderPainter(
+                    display,
+                    interactive ? _kGroupColor : Colors.grey,
+                    false,
+                  ),
+                  size: Size(constraints.maxWidth, h),
+                ),
+              );
+              if (widget.controller != null) {
+                // Hit-tested by mixer_screen's unified pointer owner via
+                // this MetaData, not by a GestureDetector of our own — see
+                // FaderDragController's doc comment in custom_fader.dart.
+                // An empty group gets no MetaData at all, same effect as
+                // the IgnorePointer used on the standalone path below.
+                if (!interactive) return paint;
+                return MetaData(
+                  metaData: widget.controller,
+                  behavior: HitTestBehavior.opaque,
+                  child: paint,
+                );
+              }
               return IgnorePointer(
                 ignoring: !interactive,
                 child: GestureDetector(
@@ -290,16 +350,7 @@ class _GroupFaderState extends State<GroupFader> {
                   onVerticalDragStart: _onDragStart,
                   onVerticalDragUpdate: (d) => _onDragUpdate(d, h),
                   onVerticalDragEnd: _onDragEnd,
-                  child: RepaintBoundary(
-                    child: CustomPaint(
-                      painter: FaderPainter(
-                        display,
-                        interactive ? _kGroupColor : Colors.grey,
-                        false,
-                      ),
-                      size: Size(constraints.maxWidth, h),
-                    ),
-                  ),
+                  child: paint,
                 ),
               );
             },

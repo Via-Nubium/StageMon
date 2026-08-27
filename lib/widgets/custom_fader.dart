@@ -49,6 +49,62 @@ const double _kPad = 2.0;
 // competitor. A pinch's fingers move mostly horizontally and never cross it.
 const double _kDragIntentThreshold = 6.0;
 
+/// Drives a fader's value from pointer events owned by an ancestor widget
+/// instead of by this fader's own GestureDetector.
+///
+/// Nesting a per-fader drag recognizer inside a screen-wide pinch/scroll one
+/// makes every two-finger gesture a race between their independent slop
+/// thresholds — whichever self-declares first wins *all* the pointers it
+/// tracks, not just the one that moved. mixer_screen sidesteps that race by
+/// owning the raw pointers itself and deciding, and this is how it reaches
+/// into a fader once it has decided.
+///
+/// Deliberately dumb: no slop, no axis logic. The parent owns those and only
+/// calls [startDrag] at the moment it commits, passing the position *at that
+/// moment* — so the fader starts moving from zero right there rather than
+/// jumping by however far the finger travelled while the parent made up its
+/// mind.
+class FaderDragController {
+  void Function()? _onStart;
+  void Function(double dy)? _onUpdate;
+  void Function()? _onEnd;
+  double? _startY;
+
+  bool get isDragging => _startY != null;
+
+  void bind({
+    required void Function() onStart,
+    required void Function(double dy) onUpdate,
+    required void Function() onEnd,
+  }) {
+    _onStart = onStart;
+    _onUpdate = onUpdate;
+    _onEnd = onEnd;
+  }
+
+  void unbind() {
+    endDrag();
+    _onStart = null;
+    _onUpdate = null;
+    _onEnd = null;
+  }
+
+  void startDrag(double localY) {
+    _startY = localY;
+    _onStart?.call();
+  }
+
+  void updateDrag(double localY) {
+    if (_startY != null) _onUpdate?.call(localY - _startY!);
+  }
+
+  void endDrag() {
+    if (_startY == null) return;
+    _startY = null;
+    _onEnd?.call();
+  }
+}
+
 class CustomFader extends StatefulWidget {
   final String label;
   final String oscAddress;
@@ -60,12 +116,11 @@ class CustomFader extends StatefulWidget {
   // Index into kChannelColors for this channel's name background/text —
   // null means no override (name renders plain, as before).
   final int? nameColorIndex;
-  // Lets a parent screen (e.g. a pinch-to-resize gesture) veto starting a
-  // vertical drag, and be told when one starts/ends so it can do the same
-  // in reverse.
-  final bool Function()? isPinchActive;
-  final VoidCallback? onDragActiveStart;
-  final VoidCallback? onDragActiveEnd;
+  // When set, this fader is driven externally (mixer_screen's unified
+  // pointer owner) instead of by its own GestureDetector — see
+  // FaderDragController. Null (the default) keeps the fully self-contained
+  // behavior used by group_detail_screen.dart and the pinned bus fader.
+  final FaderDragController? controller;
 
   const CustomFader({
     super.key,
@@ -77,9 +132,7 @@ class CustomFader extends StatefulWidget {
     this.meterLevelRight,
     this.isMain = false,
     this.nameColorIndex,
-    this.isPinchActive,
-    this.onDragActiveStart,
-    this.onDragActiveEnd,
+    this.controller,
   });
 
   @override
@@ -95,12 +148,20 @@ class _CustomFaderState extends State<CustomFader> {
   double? _dragStartY;
   bool _signaledDragActive = false;
   double _dragActivationDy = 0;
+  // Latest LayoutBuilder height, kept around for the controller-driven
+  // callbacks below, which run outside that builder's own closure.
+  double _paintHeight = 0;
 
   @override
   void initState() {
     super.initState();
     widget.service.addListener(widget.oscAddress, _onConsoleValue);
     widget.service.request(widget.oscAddress);
+    widget.controller?.bind(
+      onStart: _onControllerDragStart,
+      onUpdate: _onControllerDragUpdate,
+      onEnd: _onControllerDragEnd,
+    );
   }
 
   @override
@@ -111,11 +172,20 @@ class _CustomFaderState extends State<CustomFader> {
       widget.service.addListener(widget.oscAddress, _onConsoleValue);
       widget.service.request(widget.oscAddress);
     }
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller?.unbind();
+      widget.controller?.bind(
+        onStart: _onControllerDragStart,
+        onUpdate: _onControllerDragUpdate,
+        onEnd: _onControllerDragEnd,
+      );
+    }
   }
 
   @override
   void dispose() {
     widget.service.removeListener(widget.oscAddress, _onConsoleValue);
+    widget.controller?.unbind();
     _throttleTimer?.cancel();
     super.dispose();
   }
@@ -141,7 +211,6 @@ class _CustomFaderState extends State<CustomFader> {
   }
 
   void _onDragStart(DragStartDetails d) {
-    if (widget.isPinchActive?.call() == true) return;
     _isDragging = true;
     _signaledDragActive = false;
     _dragStartValue = _value;
@@ -152,19 +221,12 @@ class _CustomFaderState extends State<CustomFader> {
     if (!_isDragging) return;
     final dy = d.localPosition.dy - _dragStartY!;
     if (!_signaledDragActive) {
-      if (widget.isPinchActive?.call() == true) {
-        // A pinch won the arena for a second finger while this one hadn't
-        // shown real vertical intent yet — hand the gesture over silently.
-        _isDragging = false;
-        return;
-      }
       if (dy.abs() < _kDragIntentThreshold) return;
       _signaledDragActive = true;
       // Lock in the offset at the exact moment of crossing, so the fader
       // starts moving from zero right here instead of jumping by however
       // far the finger already traveled through the dead zone.
       _dragActivationDy = dy;
-      widget.onDragActiveStart?.call();
     }
     final knobH = widget.isMain ? _kMainKnobH : _kKnobH;
     final travel = height - knobH - _kPad * 2;
@@ -178,8 +240,36 @@ class _CustomFaderState extends State<CustomFader> {
   void _onDragEnd(DragEndDetails _) {
     if (!_isDragging) return;
     _isDragging = false;
-    if (_signaledDragActive) widget.onDragActiveEnd?.call();
     // Flush any pending value immediately when the user lifts their finger.
+    _throttleTimer?.cancel();
+    _throttleTimer = null;
+    if (_pendingValue != null) {
+      widget.service.send(widget.oscAddress, _pendingValue!);
+      _pendingValue = null;
+    }
+  }
+
+  // ── Controller-driven path (mixer_screen's unified pointer owner) ────────
+  // Same value math as above, but the axis-lock/dead-zone decision already
+  // happened in the parent before FaderDragController.startDrag was called,
+  // so there's nothing to re-check here.
+
+  void _onControllerDragStart() {
+    _isDragging = true;
+    _dragStartValue = _value;
+  }
+
+  void _onControllerDragUpdate(double effectiveDy) {
+    final knobH = widget.isMain ? _kMainKnobH : _kKnobH;
+    final travel = _paintHeight - knobH - _kPad * 2;
+    if (travel <= 0) return;
+    final newValue = (_dragStartValue! - effectiveDy / travel).clamp(0.0, 1.0);
+    setState(() => _value = newValue);
+    _sendValue(newValue);
+  }
+
+  void _onControllerDragEnd() {
+    _isDragging = false;
     _throttleTimer?.cancel();
     _throttleTimer = null;
     if (_pendingValue != null) {
@@ -233,23 +323,35 @@ class _CustomFaderState extends State<CustomFader> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final h = constraints.maxHeight;
+              _paintHeight = h;
+              final paint = RepaintBoundary(
+                child: CustomPaint(
+                  painter: FaderPainter(
+                    _value,
+                    widget.accentColor,
+                    widget.isMain,
+                    widget.meterLevel,
+                    widget.meterLevelRight,
+                  ),
+                  size: Size(constraints.maxWidth, h),
+                ),
+              );
+              if (widget.controller != null) {
+                // Hit-tested by mixer_screen's unified pointer owner via
+                // this MetaData, not by a GestureDetector of our own — see
+                // FaderDragController's doc comment for why.
+                return MetaData(
+                  metaData: widget.controller,
+                  behavior: HitTestBehavior.opaque,
+                  child: paint,
+                );
+              }
               return GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onVerticalDragStart: _onDragStart,
                 onVerticalDragUpdate: (d) => _onDragUpdate(d, h),
                 onVerticalDragEnd: _onDragEnd,
-                child: RepaintBoundary(
-                  child: CustomPaint(
-                    painter: FaderPainter(
-                      _value,
-                      widget.accentColor,
-                      widget.isMain,
-                      widget.meterLevel,
-                      widget.meterLevelRight,
-                    ),
-                    size: Size(constraints.maxWidth, h),
-                  ),
-                ),
+                child: paint,
               );
             },
           ),
