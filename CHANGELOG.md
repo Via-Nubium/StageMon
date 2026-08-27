@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased]
+## [1.1.0] - 2026-08-27
 
 ### Added
 - Long-press a channel, LINE, FX return, MASTER, or group fader chip in Settings to give it a color — the same 16 colors the mixer itself uses for its scribble strips. Arrows let you step through every fader without closing the menu. Leave it set to "Console" and the color automatically matches whatever that channel already has on the mixer (not available for group faders, which don't exist on the console). The chosen color shows on the chip in Settings and colors the fader's name on the mixer screen.
