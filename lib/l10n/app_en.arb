@@ -387,6 +387,9 @@
   "faderVisibilityTitle": "Visible faders",
   "@faderVisibilityTitle": {},
 
+  "colorHintCaption": "Long-press a button to change its color",
+  "@colorHintCaption": {},
+
   "includeBusOption": "Include output bus",
   "@includeBusOption": {},
 

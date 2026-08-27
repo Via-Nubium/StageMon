@@ -116,6 +116,7 @@
   "ok": "Aceptar",
   "busWillChangeNote": "Se cambiará el bus auxiliar de salida.",
   "faderVisibilityTitle": "Faders visibles",
+  "colorHintCaption": "Mantén presionado un botón para cambiar su color",
   "includeBusOption": "Incluir bus de salida",
   "fxReturnCount": "{count, plural, =1{1 FX} other{{count} FX}}",
   "groupCount": "{count, plural, =1{1 grupo} other{{count} grupos}}"

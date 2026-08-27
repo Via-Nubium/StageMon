@@ -506,6 +506,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ],
                       ),
                     ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                      child: Text(
+                        l.colorHintCaption,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontStyle: FontStyle.italic,
+                          color: Colors.white38,
+                        ),
+                      ),
+                    ),
                     _cardSubLabel(l.visibleChannels),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
