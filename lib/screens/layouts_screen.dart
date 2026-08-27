@@ -43,24 +43,12 @@ class _LayoutsScreenState extends State<LayoutsScreen> {
     });
   }
 
-  // Translates the unified layout state to SavedLayout's own (still
-  // separate) fields — SavedLayout keeps its v1 shape until stage 1d wraps
-  // a MixerLayoutState directly.
   SavedLayout _currentAsLayout(String name, {required bool includeBus}) =>
       SavedLayout(
         name: name,
-        selectedChannels: Set.of(widget.layout.channels),
-        showBusFader: widget.layout.busFaderVisible,
+        console: widget.consoleModel,
         bus: includeBus ? widget.layout.bus : null,
-        groupConfigs: List.of(widget.layout.groups),
-        selectedFxReturns: Set.of(widget.layout.fxReturns),
-        showLineIn: widget.layout.lineInVisible,
-        busAlwaysVisible: widget.layout.busFaderPinned,
-        channelColors: Map.of(widget.layout.channelColors),
-        lineInColor: widget.layout.lineInColor,
-        fxReturnColors: Map.of(widget.layout.fxReturnColors),
-        busColors: Map.of(widget.layout.busColors),
-        consoleModel: widget.consoleModel,
+        layout: widget.layout,
       );
 
   Future<(String, bool)?> _showNameDialog({
@@ -283,15 +271,15 @@ class _LayoutsScreenState extends State<LayoutsScreen> {
     }
   }
 
-  String _layoutSummary(AppLocalizations l, SavedLayout layout) {
-    final visibleGroups = layout.groupConfigs.where((g) => g.visible).length;
+  String _layoutSummary(AppLocalizations l, SavedLayout saved) {
+    final state = saved.layout;
+    final visibleGroups = state.groups.where((g) => g.visible).length;
     final parts = [
-      l.channelCount(layout.selectedChannels.length),
-      if (layout.showLineIn) l.lineIn,
-      if (layout.selectedFxReturns.isNotEmpty)
-        l.fxReturnCount(layout.selectedFxReturns.length),
+      l.channelCount(state.channels.length),
+      if (state.lineInVisible) l.lineIn,
+      if (state.fxReturns.isNotEmpty) l.fxReturnCount(state.fxReturns.length),
       if (visibleGroups > 0) l.groupCount(visibleGroups),
-      if (layout.bus != null) l.busTitleMono(layout.bus!),
+      if (saved.bus != null) l.busTitleMono(saved.bus!),
     ];
     return parts.join(' · ');
   }

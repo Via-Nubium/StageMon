@@ -256,20 +256,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     if (result != null && mounted) {
       setState(() {
-        _state = MixerLayoutState(
-          // null means "leave the current bus alone" — see SavedLayout.bus.
-          bus: result.bus ?? _state.bus,
-          channels: result.selectedChannels,
-          channelColors: result.channelColors,
-          fxReturns: result.selectedFxReturns,
-          fxReturnColors: result.fxReturnColors,
-          lineInVisible: result.showLineIn,
-          lineInColor: result.lineInColor,
-          busFaderVisible: result.showBusFader,
-          busFaderPinned: result.busAlwaysVisible,
-          busColors: result.busColors,
-          groups: result.groupConfigs,
-        );
+        // result.bus null means "leave the current bus alone" — see
+        // SavedLayout.bus.
+        _state = result.layout.copyWith(bus: result.bus ?? _state.bus);
       });
     }
   }

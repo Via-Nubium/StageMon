@@ -1,8 +1,9 @@
+import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stagemon/models/saved_layout.dart';
 
-import 'saved_layout_test.dart' show buildLayout;
+import 'saved_layout_test.dart' show buildLayout, buildLayoutState;
 
 // LayoutManager is what a tester actually exercises: save a layout, rename
 // it, overwrite it, reopen the app. Each mutation has to reach disk, since
@@ -33,8 +34,8 @@ void main() {
     await reopened.load();
     expect(reopened.layouts.length, 1);
     expect(reopened.layouts.single.name, 'Guitarra');
-    expect(reopened.layouts.single.selectedChannels, {1, 2, 3, 9});
-    expect(reopened.layouts.single.groupConfigs.single.channels, {5, 6});
+    expect(reopened.layouts.single.layout.channels, {1, 2, 3, 9});
+    expect(reopened.layouts.single.layout.groups.single.channels, {5, 6});
   });
 
   test('keeps insertion order across a reload', () async {
@@ -73,24 +74,44 @@ void main() {
     final m = LayoutManager();
     await m.add(named('Monitor Batería'));
 
-    final replacement = named('nombre que se descarta')
-      ..selectedChannels.clear();
-    replacement.selectedChannels.addAll({7, 8});
+    final replacement = SavedLayout(
+      name: 'nombre que se descarta',
+      console: 'XR18',
+      bus: 3,
+      layout: buildLayoutState().copyWith(channels: {7, 8}),
+    );
     await m.overwrite(0, replacement);
 
     final reopened = LayoutManager();
     await reopened.load();
     expect(reopened.layouts.single.name, 'Monitor Batería');
-    expect(reopened.layouts.single.selectedChannels, {7, 8});
+    expect(reopened.layouts.single.layout.channels, {7, 8});
   });
 
   test('a corrupt store loads as empty instead of throwing', () async {
     SharedPreferences.setMockInitialValues({
-      'saved_layouts_v1': 'not json at all',
+      'saved_layouts_v2': 'not json at all',
     });
     final m = LayoutManager();
     await expectLater(m.load(), completes);
     expect(m.layouts, isEmpty);
+  });
+
+  test('one unreadable entry does not cost the user the others', () async {
+    // SavedLayout.fromJson throws on anything that isn't a layout, so a
+    // single bad entry must not abort the whole load — nor leave the list
+    // half-filled from a clear() that already ran.
+    final good = named('Buena').toJson();
+    SharedPreferences.setMockInitialValues({
+      'saved_layouts_v2': jsonEncode([
+        good,
+        {'not': 'a layout'},
+        {...good, 'name': 'Otra buena'},
+      ]),
+    });
+    final m = LayoutManager();
+    await m.load();
+    expect(m.layouts.map((l) => l.name), ['Buena', 'Otra buena']);
   });
 
   test('load() twice does not duplicate the list', () async {

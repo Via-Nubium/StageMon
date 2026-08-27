@@ -25,16 +25,10 @@ void main() {
     expect(back.colorIndex, full.colorIndex);
   });
 
-  test('survives a round trip through the list encoding', () {
-    final configs = [full, ...GroupFaderConfig.defaultConfigs()];
-    final back = GroupFaderConfig.fromJsonList(
-      GroupFaderConfig.toJsonList(configs),
-    );
-    expect(back.length, configs.length);
-    expect(back.first.channels, full.channels);
-    expect(back.first.colorIndex, full.colorIndex);
-    expect(back.last.name, configs.last.name);
-  });
+  // The list-level encoding (formerly GroupFaderConfig.toJsonList /
+  // fromJsonList, for the retired group_faders_v1 pref) now lives in
+  // MixerLayoutState's `groups` field — round-tripped in
+  // mixer_layout_state_test.dart and saved_layout_test.dart.
 
   test('reads legacy JSON that predates fxReturns/lineIn/colorIndex', () {
     final back = GroupFaderConfig.fromJson({

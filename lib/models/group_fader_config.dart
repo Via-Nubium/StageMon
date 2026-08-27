@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 class GroupFaderConfig {
   final String name;
   final bool visible;
@@ -66,12 +64,4 @@ class GroupFaderConfig {
         GroupFaderConfig(name: 'Grupo 3', channels: {}, fxReturns: {}),
         GroupFaderConfig(name: 'Grupo 4', channels: {}, fxReturns: {}),
       ];
-
-  static List<GroupFaderConfig> fromJsonList(String jsonStr) {
-    final list = jsonDecode(jsonStr) as List;
-    return list.map((e) => GroupFaderConfig.fromJson(e as Map<String, dynamic>)).toList();
-  }
-
-  static String toJsonList(List<GroupFaderConfig> configs) =>
-      jsonEncode(configs.map((c) => c.toJson()).toList());
 }
