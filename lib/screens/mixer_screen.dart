@@ -739,8 +739,6 @@ class _MixerScreenState extends State<MixerScreen> {
                             subtitle: Text(
                               snap.values.isEmpty
                                   ? l.snapshotNoData
-                                  : snap.panValues.isNotEmpty
-                                  ? l.snapshotWithPan(snap.values.length)
                                   : l.snapshotChannels(snap.values.length),
                               style: TextStyle(
                                 color: snap.values.isEmpty

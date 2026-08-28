@@ -103,14 +103,7 @@
   "snapshotNoData": "No data — mixer was not connected",
   "@snapshotNoData": {},
 
-  "snapshotWithPan": "{count} channels + pan (stereo)",
-  "@snapshotWithPan": {
-    "placeholders": {
-      "count": {"type": "int"}
-    }
-  },
-
-  "snapshotChannels": "{count} channels saved",
+  "snapshotChannels": "{count} channels + line + FX + Master",
   "@snapshotChannels": {
     "placeholders": {
       "count": {"type": "int"}
