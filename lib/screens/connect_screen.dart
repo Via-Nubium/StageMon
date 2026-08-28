@@ -71,7 +71,14 @@ class _ConnectScreenState extends State<ConnectScreen> {
     });
   }
 
-  static const _testedModels = {'XR18', 'X18'};
+  static const _testedModels = {
+    'XR18',
+    'X18',
+    'MR18',
+    'XR18V2',
+    'X18V2',
+    'MR18V2',
+  };
 
   void _connectManual() async {
     final l = AppLocalizations.of(context)!;
