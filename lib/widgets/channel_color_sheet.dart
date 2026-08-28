@@ -180,16 +180,17 @@ class _ChannelColorSheetState extends State<_ChannelColorSheet> {
               childAspectRatio: 1.85,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              children: kChannelColors
-                  .map(
-                    (o) => _Swatch(
-                      text: localizedColorLabel(l, o),
-                      color: o,
-                      selected: selected == o.index,
-                      onTap: () => _select(o.index),
-                    ),
-                  )
-                  .toList(),
+              // Iterates indices rather than the list itself: the position
+              // in kChannelColors *is* the console's value for that color.
+              children: [
+                for (var i = 0; i < kChannelColors.length; i++)
+                  _Swatch(
+                    text: localizedColorLabel(l, i),
+                    color: kChannelColors[i],
+                    selected: selected == i,
+                    onTap: () => _select(i),
+                  ),
+              ],
             ),
           ],
         ),

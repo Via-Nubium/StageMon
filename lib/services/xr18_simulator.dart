@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:osc/osc.dart';
+import '../models/channel_color.dart';
 
 /// Embedded fake XR18 console for the "simulador mode" onboarding flow.
 ///
@@ -24,11 +25,10 @@ class XR18Simulator {
     0.66, 0.45, 0.40, 0.35, 0.42, 0.20, 0.20, 0.0,
   ];
 
-  // XR18 /config/color values: 0-7 base colors, 8-15 the same 8 inverted.
-  static const _channelColorValue = 0; // OFF, all 16 channels
-  static const _rtnColorValue = 2; // GN, all 4 FX returns
-  static const _lineInColor = 3; // YE
-  static const _busColorValue = 3; // YE, all 6 buses
+  static const _channelColorValue = ConsoleColor.off; // all 16 channels
+  static const _lineInColor = ConsoleColor.offi;
+  static const _rtnColorValue = ConsoleColor.cyi; // all 4 FX returns
+  static const _busColorValue = ConsoleColor.yei; // all 6 buses
 
   RawDatagramSocket? _socket;
   Timer? _meterTimer;
