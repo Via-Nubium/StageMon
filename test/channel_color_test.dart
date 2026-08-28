@@ -24,6 +24,15 @@ void main() {
     }
   });
 
+  test('an out-of-range slot clamps instead of throwing', () {
+    // channelColorByIndex runs inside build; a stray index has to degrade
+    // to a wrong color, never to a RangeError that takes down the screen.
+    expect(channelColorByIndex(99), same(kChannelColors.last));
+    expect(channelColorByIndex(-1), same(kChannelColors.first));
+    expect(channelColorByIndex(0), same(kChannelColors.first));
+    expect(channelColorByIndex(15), same(kChannelColors.last));
+  });
+
   group('localizedColorLabel', () {
     late AppLocalizations es;
     late AppLocalizations en;

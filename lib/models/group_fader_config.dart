@@ -55,7 +55,10 @@ class GroupFaderConfig {
             ? Set<int>.from((json['fxReturns'] as List).map((e) => e as int))
             : {},
         lineIn: json['lineIn'] as bool? ?? false,
-        colorIndex: json['colorIndex'] as int? ?? defaultColorIndex,
+        // Clamped like every other stored color — see _colorMapFromJson in
+        // mixer_layout_state.dart.
+        colorIndex:
+            (json['colorIndex'] as int?)?.clamp(0, 15) ?? defaultColorIndex,
       );
 
   static List<GroupFaderConfig> defaultConfigs() => [

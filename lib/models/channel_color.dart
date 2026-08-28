@@ -145,7 +145,16 @@ const List<ChannelColorOption> kChannelColors = [
   ),
 ];
 
-ChannelColorOption channelColorByIndex(int index) => kChannelColors[index];
+/// The palette entry for a slot, for any [index] at all.
+///
+/// Total on purpose: this runs inside `build`, so a stray index would
+/// otherwise throw a RangeError while painting a fader. Every caller
+/// already clamps at its own boundary (OSC values in MixerController,
+/// stored values in MixerLayoutState and GroupFaderConfig); this is the
+/// last-resort net for a path nobody anticipated. An out-of-range index is
+/// clamped into the palette rather than taking the screen down.
+ChannelColorOption channelColorByIndex(int index) =>
+    kChannelColors[index.clamp(0, kChannelColors.length - 1)];
 
 /// The name of colour slot [index] in the app's current language.
 ///

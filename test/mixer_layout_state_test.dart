@@ -181,6 +181,36 @@ void main() {
     },
   );
 
+  test('stored colors outside 0-15 are clamped on the way in', () {
+    // The one color source the app doesn't produce itself: a hand-edited
+    // or damaged layout. Left unchecked these reach channelColorByIndex
+    // during build, and since the live layout lives in prefs, that would
+    // crash the mixer screen on every launch.
+    final json = buildState().toJson();
+    (json['channels'] as Map<String, dynamic>)['colors'] = {'1': 99, '2': -5};
+    (json['fxReturns'] as Map<String, dynamic>)['colors'] = {'2': 4000};
+    (json['busFader'] as Map<String, dynamic>)['colors'] = {'3': -1};
+    (json['groups'] as List)[0] = {
+      ...(json['groups'] as List)[0] as Map<String, dynamic>,
+      'color': 42,
+    };
+
+    final back = MixerLayoutState.fromJson(json, fallbackBus: 1);
+    expect(back.channelColors[1], 15);
+    expect(back.channelColors[2], 0);
+    expect(back.fxReturnColors[2], 15);
+    expect(back.busColors[3], 0);
+    expect(back.groups.first.colorIndex, 15);
+  });
+
+  test('an explicit null color override is left alone by the clamp', () {
+    final json = buildState().toJson();
+    (json['channels'] as Map<String, dynamic>)['colors'] = {'1': null};
+    final back = MixerLayoutState.fromJson(json, fallbackBus: 1);
+    expect(back.channelColors.containsKey(1), isTrue);
+    expect(back.channelColors[1], isNull);
+  });
+
   group('per-field corruption tolerance', () {
     // Corrupting any single field must not disturb the other ten — mirrors
     // the per-key try/catch the old SharedPreferences-based loader had.

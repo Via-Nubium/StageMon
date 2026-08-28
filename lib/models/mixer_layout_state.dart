@@ -233,9 +233,17 @@ class MixerLayoutState {
   }
 }
 
+// Clamped on the way in, mirroring what MixerController already does with
+// colors arriving over OSC. A stored file is the one color source the app
+// doesn't produce itself — a hand-edited or damaged layout carrying, say,
+// 99 would otherwise reach channelColorByIndex and throw a RangeError mid
+// build. Since the active layout lives in prefs, that would crash the
+// mixer screen on every launch, with no way out but clearing app data.
 Map<int, int?> _colorMapFromJson(dynamic raw) {
   final map = raw as Map<String, dynamic>;
-  return map.map((k, v) => MapEntry(int.parse(k), v as int?));
+  return map.map(
+    (k, v) => MapEntry(int.parse(k), (v as int?)?.clamp(0, 15)),
+  );
 }
 
 // GroupFaderConfig's own JSON codec still uses the field name `colorIndex`
