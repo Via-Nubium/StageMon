@@ -5,11 +5,26 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../widgets/custom_fader.dart';
 
-/// Marks PanKnob / MuteButton / the group config button inside the strip so a
-/// touch there is excluded from both fader-drag and strip handling — those
-/// widgets keep their own independent gesture handling untouched. Whoever
-/// builds the strip wraps them in a `MetaData` carrying this object.
-const Object kForeignGestureArea = Object();
+// The marker [ForeignGestureArea] plants in the tree and _stripTargetAt looks
+// for. Private: nothing outside this file needs to know how the exclusion is
+// spelled, only to wrap the widget.
+const Object _kForeignGestureArea = Object();
+
+/// Wraps a control that sits inside the strip but keeps its own gesture
+/// handling — a PanKnob, the MuteButton, the group config button. Touches on
+/// it are excluded from both fader-drag and strip scroll/pinch.
+class ForeignGestureArea extends StatelessWidget {
+  const ForeignGestureArea({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => MetaData(
+    metaData: _kForeignGestureArea,
+    behavior: HitTestBehavior.opaque,
+    child: child,
+  );
+}
 
 /// The bus column sits outside the pinch-resize, so it keeps a fixed width and
 /// is accounted for separately in the strip-extent math.
@@ -134,7 +149,8 @@ class FaderStripController extends ChangeNotifier {
       final target = entry.target;
       if (target is! RenderMetaData) continue;
       final meta = target.metaData;
-      if (meta is FaderDragController || identical(meta, kForeignGestureArea)) {
+      if (meta is FaderDragController ||
+          identical(meta, _kForeignGestureArea)) {
         return meta;
       }
     }
@@ -147,7 +163,7 @@ class FaderStripController extends ChangeNotifier {
     final p = _TrackedPointer(
       e.localPosition,
       hit is FaderDragController ? hit : null,
-      identical(hit, kForeignGestureArea)
+      identical(hit, _kForeignGestureArea)
           ? _PointerRole.ignored
           : _PointerRole.undecided,
     );

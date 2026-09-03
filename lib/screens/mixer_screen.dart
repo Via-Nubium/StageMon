@@ -8,6 +8,7 @@ import '../services/screen_awake_service.dart';
 import '../widgets/custom_fader.dart';
 import '../widgets/mute_button.dart';
 import '../widgets/pan_knob.dart';
+import '../widgets/fader_column.dart';
 import '../widgets/group_fader.dart';
 import '../widgets/snapshots_sheet.dart';
 import '../models/snapshot_manager.dart';
@@ -100,6 +101,16 @@ class _MixerScreenState extends State<MixerScreen> {
 
   void _onStripChanged() {
     if (mounted) setState(() {});
+  }
+
+  // Every strip column reserves the same height above its fader, so the faders
+  // themselves line up: a pan knob when the bus is a stereo pair, an empty gap
+  // when it isn't.
+  Widget _panHead({required Key key, required String oscAddress}) {
+    if (!_ctrl.busPaired) return const SizedBox(height: kPanKnobHeight);
+    return ForeignGestureArea(
+      child: PanKnob(key: key, oscAddress: oscAddress, service: widget.service),
+    );
   }
 
   // ── Navigation / dialogs ──────────────────────────────────────────────────
@@ -327,40 +338,30 @@ class _MixerScreenState extends State<MixerScreen> {
               MediaQuery.viewPaddingOf(context).left +
               (busPinned ? 0 : MediaQuery.viewPaddingOf(context).right),
         );
-        final busFader = Container(
+        final busFader = FaderColumn(
           key: const ValueKey('bus_container'),
           width: kBusColumnWidth,
-          color: const Color.fromARGB(255, 14, 23, 43),
-          child: Column(
-            children: [
-              const SizedBox(height: kPanKnobHeight),
-              Expanded(
-                child: CustomFader(
-                  key: const ValueKey('bus'),
-                  label: 'MASTER',
-                  oscAddress: _ctrl.busFaderAddress(),
-                  service: widget.service,
-                  accentColor: Colors.amber,
-                  nameColorIndex: busFaderColorIndex,
-                  isMain: true,
-                  meterLevel: _ctrl.busMeterLevel,
-                  meterLevelRight: _ctrl.busPaired
-                      ? _ctrl.busMeterLevelRight
-                      : null,
-                  controller: busPinned ? null : _strip.controllerFor('bus'),
-                ),
-              ),
-              MetaData(
-                metaData: kForeignGestureArea,
-                behavior: HitTestBehavior.opaque,
-                child: MuteButton(
-                  key: const ValueKey('mute_bus'),
-                  isMuted: _ctrl.busMuted == true,
-                  label: 'Bus',
-                  onToggle: _ctrl.setBusMuted,
-                ),
-              ),
-            ],
+          background: const Color.fromARGB(255, 14, 23, 43),
+          head: const SizedBox(height: kPanKnobHeight),
+          footer: ForeignGestureArea(
+            child: MuteButton(
+              key: const ValueKey('mute_bus'),
+              isMuted: _ctrl.busMuted == true,
+              label: 'Bus',
+              onToggle: _ctrl.setBusMuted,
+            ),
+          ),
+          child: CustomFader(
+            key: const ValueKey('bus'),
+            label: 'MASTER',
+            oscAddress: _ctrl.busFaderAddress(),
+            service: widget.service,
+            accentColor: Colors.amber,
+            nameColorIndex: busFaderColorIndex,
+            isMain: true,
+            meterLevel: _ctrl.busMeterLevel,
+            meterLevelRight: _ctrl.busPaired ? _ctrl.busMeterLevelRight : null,
+            controller: busPinned ? null : _strip.controllerFor('bus'),
           ),
         );
         return PopScope(
@@ -491,191 +492,118 @@ class _MixerScreenState extends State<MixerScreen> {
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 ...channels.map(
-                                  (ch) => SizedBox(
+                                  (ch) => FaderColumn(
                                     key: ValueKey(ch),
                                     width: _strip.faderWidth,
-                                    child: Column(
-                                      children: [
-                                        if (_ctrl.busPaired)
-                                          MetaData(
-                                            metaData: kForeignGestureArea,
-                                            behavior: HitTestBehavior.opaque,
-                                            child: PanKnob(
-                                              key: ValueKey('pan_$ch'),
-                                              oscAddress: _ctrl.panAddress(ch),
-                                              service: widget.service,
-                                            ),
-                                          )
-                                        else
-                                          const SizedBox(
-                                            height: kPanKnobHeight,
-                                          ),
-                                        Expanded(
-                                          child: CustomFader(
-                                            key: ValueKey(ch),
-                                            label: _ctrl.channelLabel(ch),
-                                            oscAddress: _ctrl.busAddress(ch),
-                                            service: widget.service,
-                                            meterLevel:
-                                                _ctrl.meterLevels[ch - 1],
-                                            nameColorIndex:
-                                                _layout.channelColors[ch] ??
-                                                _ctrl
-                                                    .consoleChannelColors[ch] ??
-                                                0,
-                                            controller: _strip.controllerFor(
-                                              ch,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
+                                    head: _panHead(
+                                      key: ValueKey('pan_$ch'),
+                                      oscAddress: _ctrl.panAddress(ch),
+                                    ),
+                                    child: CustomFader(
+                                      key: ValueKey(ch),
+                                      label: _ctrl.channelLabel(ch),
+                                      oscAddress: _ctrl.busAddress(ch),
+                                      service: widget.service,
+                                      meterLevel: _ctrl.meterLevels[ch - 1],
+                                      nameColorIndex:
+                                          _layout.channelColors[ch] ??
+                                          _ctrl.consoleChannelColors[ch] ??
+                                          0,
+                                      controller: _strip.controllerFor(ch),
                                     ),
                                   ),
                                 ),
-                                if (_layout.lineInVisible) ...[
-                                  SizedBox(
+                                if (_layout.lineInVisible)
+                                  FaderColumn(
                                     key: const ValueKey('line_in'),
                                     width: _strip.faderWidth,
-                                    child: Column(
-                                      children: [
-                                        if (_ctrl.busPaired)
-                                          MetaData(
-                                            metaData: kForeignGestureArea,
-                                            behavior: HitTestBehavior.opaque,
-                                            child: PanKnob(
-                                              key: const ValueKey(
-                                                'line_in_pan',
-                                              ),
-                                              oscAddress: _ctrl
-                                                  .lineInPanAddress(),
-                                              service: widget.service,
-                                            ),
-                                          )
-                                        else
-                                          const SizedBox(
-                                            height: kPanKnobHeight,
-                                          ),
-                                        Expanded(
-                                          child: CustomFader(
-                                            key: const ValueKey('line_in'),
-                                            label: 'LINE',
-                                            oscAddress: _ctrl.lineInAddress(),
-                                            service: widget.service,
-                                            meterLevel: _ctrl.lineInMeterL,
-                                            meterLevelRight: _ctrl.lineInMeterR,
-                                            nameColorIndex:
-                                                _layout.lineInColor ??
-                                                _ctrl.consoleLineInColor ??
-                                                0,
-                                            controller: _strip.controllerFor(
-                                              'line_in',
-                                            ),
-                                          ),
-                                        ),
-                                      ],
+                                    head: _panHead(
+                                      key: const ValueKey('line_in_pan'),
+                                      oscAddress: _ctrl.lineInPanAddress(),
+                                    ),
+                                    child: CustomFader(
+                                      key: const ValueKey('line_in'),
+                                      label: 'LINE',
+                                      oscAddress: _ctrl.lineInAddress(),
+                                      service: widget.service,
+                                      meterLevel: _ctrl.lineInMeterL,
+                                      meterLevelRight: _ctrl.lineInMeterR,
+                                      nameColorIndex:
+                                          _layout.lineInColor ??
+                                          _ctrl.consoleLineInColor ??
+                                          0,
+                                      controller: _strip.controllerFor(
+                                        'line_in',
+                                      ),
                                     ),
                                   ),
-                                ],
                                 ...visibleFxReturns.map(
-                                  (rtn) => SizedBox(
+                                  (rtn) => FaderColumn(
                                     key: ValueKey('fxrtn_$rtn'),
                                     width: _strip.faderWidth,
-                                    child: Column(
-                                      children: [
-                                        if (_ctrl.busPaired)
-                                          MetaData(
-                                            metaData: kForeignGestureArea,
-                                            behavior: HitTestBehavior.opaque,
-                                            child: PanKnob(
-                                              key: ValueKey('fxrtn_pan_$rtn'),
-                                              oscAddress: _ctrl
-                                                  .fxReturnPanAddress(rtn),
-                                              service: widget.service,
-                                            ),
-                                          )
-                                        else
-                                          const SizedBox(
-                                            height: kPanKnobHeight,
-                                          ),
-                                        Expanded(
-                                          child: CustomFader(
-                                            key: ValueKey('fxrtn_$rtn'),
-                                            label: _ctrl.fxReturnLabel(rtn),
-                                            oscAddress: _ctrl.fxReturnAddress(
-                                              rtn,
-                                            ),
-                                            service: widget.service,
-                                            accentColor: Colors.teal,
-                                            meterLevel:
-                                                _ctrl.fxReturnMeterL[rtn - 1],
-                                            meterLevelRight:
-                                                _ctrl.fxReturnMeterR[rtn - 1],
-                                            nameColorIndex:
-                                                _layout.fxReturnColors[rtn] ??
-                                                _ctrl
-                                                    .consoleFxReturnColors[rtn] ??
-                                                0,
-                                            controller: _strip.controllerFor(
-                                              'fxrtn_$rtn',
-                                            ),
-                                          ),
-                                        ),
-                                      ],
+                                    head: _panHead(
+                                      key: ValueKey('fxrtn_pan_$rtn'),
+                                      oscAddress: _ctrl.fxReturnPanAddress(rtn),
+                                    ),
+                                    child: CustomFader(
+                                      key: ValueKey('fxrtn_$rtn'),
+                                      label: _ctrl.fxReturnLabel(rtn),
+                                      oscAddress: _ctrl.fxReturnAddress(rtn),
+                                      service: widget.service,
+                                      accentColor: Colors.teal,
+                                      meterLevel: _ctrl.fxReturnMeterL[rtn - 1],
+                                      meterLevelRight:
+                                          _ctrl.fxReturnMeterR[rtn - 1],
+                                      nameColorIndex:
+                                          _layout.fxReturnColors[rtn] ??
+                                          _ctrl.consoleFxReturnColors[rtn] ??
+                                          0,
+                                      controller: _strip.controllerFor(
+                                        'fxrtn_$rtn',
+                                      ),
                                     ),
                                   ),
                                 ),
                                 ...visibleGroups.map(
-                                  (e) => Container(
+                                  (e) => FaderColumn(
                                     key: ValueKey('group_${e.key}'),
                                     width: _strip.faderWidth,
-                                    color: const Color(
-                                      0xFF00C853,
-                                    ).withValues(alpha: 0.04),
-                                    child: Column(
-                                      children: [
-                                        MetaData(
-                                          metaData: kForeignGestureArea,
-                                          behavior: HitTestBehavior.opaque,
-                                          child: SizedBox(
-                                            height: kPanKnobHeight,
-                                            child: Center(
-                                              child: IconButton(
-                                                icon: Transform.rotate(
-                                                  angle: -1.5708,
-                                                  child: const Icon(
-                                                    Icons.tune,
-                                                    size: 30,
-                                                  ),
-                                                ),
-                                                color: const Color(
-                                                  0xFF00C853,
-                                                ).withValues(alpha: 0.7),
-                                                tooltip: l.configureGroup(
-                                                  e.value.name,
-                                                ),
-                                                onPressed: () =>
-                                                    _openGroupDetail(e.key),
+                                    head: ForeignGestureArea(
+                                      child: SizedBox(
+                                        height: kPanKnobHeight,
+                                        child: Center(
+                                          child: IconButton(
+                                            icon: Transform.rotate(
+                                              angle: -1.5708,
+                                              child: const Icon(
+                                                Icons.tune,
+                                                size: 30,
                                               ),
                                             ),
-                                          ),
-                                        ),
-                                        Expanded(
-                                          child: GroupFader(
-                                            key: ValueKey('group_${e.key}'),
-                                            label: e.value.name,
-                                            channels: e.value.channels.toList(),
-                                            fxReturns: e.value.fxReturns
-                                                .toList(),
-                                            lineIn: e.value.lineIn,
-                                            busNum: _ctrl.effectiveBus,
-                                            service: widget.service,
-                                            nameColorIndex: e.value.colorIndex,
-                                            controller: _strip.controllerFor(
-                                              'group_${e.key}',
+                                            color: const Color(
+                                              0xFF00C853,
+                                            ).withValues(alpha: 0.7),
+                                            tooltip: l.configureGroup(
+                                              e.value.name,
                                             ),
+                                            onPressed: () =>
+                                                _openGroupDetail(e.key),
                                           ),
                                         ),
-                                      ],
+                                      ),
+                                    ),
+                                    child: GroupFader(
+                                      key: ValueKey('group_${e.key}'),
+                                      label: e.value.name,
+                                      channels: e.value.channels.toList(),
+                                      fxReturns: e.value.fxReturns.toList(),
+                                      lineIn: e.value.lineIn,
+                                      busNum: _ctrl.effectiveBus,
+                                      service: widget.service,
+                                      nameColorIndex: e.value.colorIndex,
+                                      controller: _strip.controllerFor(
+                                        'group_${e.key}',
+                                      ),
                                     ),
                                   ),
                                 ),
