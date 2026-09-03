@@ -11,12 +11,14 @@ import '../widgets/pan_knob.dart';
 import '../widgets/fader_column.dart';
 import '../widgets/fader_strip.dart';
 import '../widgets/group_fader.dart';
+import '../widgets/member_column.dart';
 import '../widgets/snapshots_sheet.dart';
 import '../models/snapshot_manager.dart';
 import '../models/mixer_layout_state.dart';
 import '../controllers/fader_strip_controller.dart';
 import '../controllers/mixer_controller.dart';
 import '../utils/bus_title.dart';
+import '../utils/group_members.dart';
 import 'settings_screen.dart';
 import 'group_detail_screen.dart';
 
@@ -102,16 +104,6 @@ class _MixerScreenState extends State<MixerScreen> {
 
   void _onStripChanged() {
     if (mounted) setState(() {});
-  }
-
-  // Every strip column reserves the same height above its fader, so the faders
-  // themselves line up: a pan knob when the bus is a stereo pair, an empty gap
-  // when it isn't.
-  Widget _panHead({required Key key, required String oscAddress}) {
-    if (!_ctrl.busPaired) return const SizedBox(height: kPanKnobHeight);
-    return ForeignGestureArea(
-      child: PanKnob(key: key, oscAddress: oscAddress, service: widget.service),
-    );
   }
 
   // ── Navigation / dialogs ──────────────────────────────────────────────────
@@ -309,8 +301,11 @@ class _MixerScreenState extends State<MixerScreen> {
             _layout.busColors[busFaderColorKey] ??
             _ctrl.consoleBusColors[busFaderColorKey] ??
             0;
-        final channels = _layout.channels.toList()..sort();
-        final visibleFxReturns = _layout.fxReturns.toList()..sort();
+        final members = groupMembers(
+          channels: _layout.channels,
+          fxReturns: _layout.fxReturns,
+          lineIn: _layout.lineInVisible,
+        );
         final visibleGroups = _layout.groups
             .asMap()
             .entries
@@ -318,10 +313,10 @@ class _MixerScreenState extends State<MixerScreen> {
             .toList();
         final busPinned = _layout.busFaderVisible && _layout.busFaderPinned;
         final busInline = _layout.busFaderVisible && !busPinned;
+        // Built from the same lists the columns below are, so a drag
+        // controller can't be pruned out from under a column still using it.
         _strip.pruneControllers([
-          ...channels,
-          if (_layout.lineInVisible) 'line_in',
-          ...visibleFxReturns.map((r) => 'fxrtn_$r'),
+          ...members,
           ...visibleGroups.map((e) => 'group_${e.key}'),
           if (busInline) 'bus',
         ]);
@@ -470,75 +465,13 @@ class _MixerScreenState extends State<MixerScreen> {
                           trailing: busInline ? busFader : null,
                           trailingWidth: busInline ? kBusColumnWidth : 0,
                           columns: [
-                            ...channels.map(
-                              (ch) => FaderColumn(
-                                key: ValueKey(ch),
-                                width: _strip.faderWidth,
-                                head: _panHead(
-                                  key: ValueKey('pan_$ch'),
-                                  oscAddress: _ctrl.panAddress(ch),
-                                ),
-                                child: CustomFader(
-                                  key: ValueKey(ch),
-                                  label: _ctrl.channelLabel(ch),
-                                  oscAddress: _ctrl.busAddress(ch),
-                                  service: widget.service,
-                                  meterLevel: _ctrl.meterLevels[ch - 1],
-                                  nameColorIndex:
-                                      _layout.channelColors[ch] ??
-                                      _ctrl.consoleChannelColors[ch] ??
-                                      0,
-                                  controller: _strip.controllerFor(ch),
-                                ),
-                              ),
-                            ),
-                            if (_layout.lineInVisible)
-                              FaderColumn(
-                                key: const ValueKey('line_in'),
-                                width: _strip.faderWidth,
-                                head: _panHead(
-                                  key: const ValueKey('line_in_pan'),
-                                  oscAddress: _ctrl.lineInPanAddress(),
-                                ),
-                                child: CustomFader(
-                                  key: const ValueKey('line_in'),
-                                  label: 'LINE',
-                                  oscAddress: _ctrl.lineInAddress(),
-                                  service: widget.service,
-                                  meterLevel: _ctrl.lineInMeterL,
-                                  meterLevelRight: _ctrl.lineInMeterR,
-                                  nameColorIndex:
-                                      _layout.lineInColor ??
-                                      _ctrl.consoleLineInColor ??
-                                      0,
-                                  controller: _strip.controllerFor('line_in'),
-                                ),
-                              ),
-                            ...visibleFxReturns.map(
-                              (rtn) => FaderColumn(
-                                key: ValueKey('fxrtn_$rtn'),
-                                width: _strip.faderWidth,
-                                head: _panHead(
-                                  key: ValueKey('fxrtn_pan_$rtn'),
-                                  oscAddress: _ctrl.fxReturnPanAddress(rtn),
-                                ),
-                                child: CustomFader(
-                                  key: ValueKey('fxrtn_$rtn'),
-                                  label: _ctrl.fxReturnLabel(rtn),
-                                  oscAddress: _ctrl.fxReturnAddress(rtn),
-                                  service: widget.service,
-                                  accentColor: Colors.teal,
-                                  meterLevel: _ctrl.fxReturnMeterL[rtn - 1],
-                                  meterLevelRight:
-                                      _ctrl.fxReturnMeterR[rtn - 1],
-                                  nameColorIndex:
-                                      _layout.fxReturnColors[rtn] ??
-                                      _ctrl.consoleFxReturnColors[rtn] ??
-                                      0,
-                                  controller: _strip.controllerFor(
-                                    'fxrtn_$rtn',
-                                  ),
-                                ),
+                            ...members.map(
+                              (m) => MemberColumn(
+                                key: ValueKey(m),
+                                member: m,
+                                ctrl: _ctrl,
+                                layout: _layout,
+                                strip: _strip,
                               ),
                             ),
                             ...visibleGroups.map(

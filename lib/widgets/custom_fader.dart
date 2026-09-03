@@ -106,6 +106,10 @@ class FaderDragController {
 }
 
 class CustomFader extends StatefulWidget {
+  /// The blue every column wears unless it is something else — FX returns
+  /// are teal, MASTER amber, a group green.
+  static const Color defaultAccent = Color(0xFF2979FF);
+
   final String label;
   final String oscAddress;
   final OscService service;
@@ -127,7 +131,7 @@ class CustomFader extends StatefulWidget {
     required this.label,
     required this.oscAddress,
     required this.service,
-    this.accentColor = const Color(0xFF2979FF),
+    this.accentColor = defaultAccent,
     this.meterLevel,
     this.meterLevelRight,
     this.isMain = false,
