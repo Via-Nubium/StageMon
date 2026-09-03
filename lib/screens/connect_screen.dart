@@ -1,11 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:stagemon/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/osc_service.dart';
 import '../services/xr18_simulator.dart';
 import 'mixer_screen.dart';
-
-enum _DiscoveryStatus { searching, found, notFound }
 
 class ConnectScreen extends StatefulWidget {
   const ConnectScreen({super.key});
@@ -15,8 +15,9 @@ class ConnectScreen extends StatefulWidget {
 }
 
 class _ConnectScreenState extends State<ConnectScreen> {
-  _DiscoveryStatus _status = _DiscoveryStatus.searching;
-  List<ConsoleInfo> _consoles = [];
+  bool _isSearching = true;
+  final List<ConsoleInfo> _consoles = [];
+  StreamSubscription<ConsoleInfo>? _discoverySub;
   final TextEditingController _ipController = TextEditingController();
   bool _isConnecting = false;
 
@@ -35,31 +36,41 @@ class _ConnectScreenState extends State<ConnectScreen> {
 
   @override
   void dispose() {
+    _stopDiscovery();
     _ipController.dispose();
     super.dispose();
   }
 
-  void _discover() async {
+  void _stopDiscovery() {
+    _discoverySub?.cancel();
+    _discoverySub = null;
+  }
+
+  // Each console gets its card as soon as it answers, rather than at the end
+  // of the search window: with the probe repeating for 6s, waiting for the
+  // stream to close would keep a console that answered instantly hidden for
+  // most of that time.
+  void _discover() {
+    _stopDiscovery();
     setState(() {
-      _status = _DiscoveryStatus.searching;
-      _consoles = [];
+      _isSearching = true;
+      _consoles.clear();
     });
-    try {
-      final consoles = await OscService.findAllConsoles().timeout(
-        const Duration(seconds: 6),
-        onTimeout: () => [],
-      );
-      if (!mounted) return;
-      setState(() {
-        _consoles = consoles;
-        _status = consoles.isNotEmpty
-            ? _DiscoveryStatus.found
-            : _DiscoveryStatus.notFound;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _status = _DiscoveryStatus.notFound);
-    }
+    _discoverySub = OscService.discoverConsoles().listen(
+      (console) {
+        if (!mounted) return;
+        setState(() => _consoles.add(console));
+      },
+      onError: (_) {
+        if (!mounted) return;
+        setState(() => _isSearching = false);
+      },
+      onDone: () {
+        if (!mounted) return;
+        setState(() => _isSearching = false);
+      },
+      cancelOnError: true,
+    );
   }
 
   bool _isValidIp(String ip) {
@@ -159,6 +170,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
     String? model,
   ]) async {
     final l = AppLocalizations.of(context)!;
+    _stopDiscovery();
     final ip = (overrideIp ?? _ipController.text).trim();
     if (ip.isEmpty) return;
     if (simulator == null && !_isValidIp(ip)) {
@@ -224,7 +236,6 @@ class _ConnectScreenState extends State<ConnectScreen> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final isSearching = _status == _DiscoveryStatus.searching;
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -243,7 +254,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
               _buildDiscoverySection(l),
               const SizedBox(height: 16),
               OutlinedButton.icon(
-                onPressed: isSearching ? null : _discover,
+                onPressed: _isSearching ? null : _discover,
                 icon: const Icon(Icons.search),
                 label: Text(l.search),
                 style: OutlinedButton.styleFrom(
@@ -276,7 +287,9 @@ class _ConnectScreenState extends State<ConnectScreen> {
               ),
               const SizedBox(height: 16),
               ElevatedButton.icon(
-                onPressed: isSearching || _isConnecting ? null : _connectManual,
+                onPressed: _isSearching || _isConnecting
+                    ? null
+                    : _connectManual,
                 icon: const Icon(Icons.power_settings_new),
                 label: Text(l.connect),
                 style: ElevatedButton.styleFrom(
@@ -291,9 +304,24 @@ class _ConnectScreenState extends State<ConnectScreen> {
   }
 
   Widget _buildDiscoverySection(AppLocalizations l) {
-    switch (_status) {
-      case _DiscoveryStatus.searching:
-        return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildDiscoveryHeader(l),
+        // Consoles stack above the simulator, which is always offered.
+        ..._consoles.map(
+          (c) => _ConsoleCard(console: c, onTap: () => _connectToConsole(c)),
+        ),
+        _SimulatorCard(onTap: _isConnecting ? null : _connectSimulator),
+      ],
+    );
+  }
+
+  Widget _buildDiscoveryHeader(AppLocalizations l) {
+    if (_isSearching) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const SizedBox(
@@ -304,42 +332,28 @@ class _ConnectScreenState extends State<ConnectScreen> {
             const SizedBox(width: 8),
             Text(l.searching),
           ],
-        );
-
-      case _DiscoveryStatus.notFound:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.warning_amber, color: Colors.orange, size: 18),
-                const SizedBox(width: 8),
-                Text(
-                  l.noMixerFound,
-                  style: const TextStyle(color: Colors.orange),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _SimulatorCard(onTap: _isConnecting ? null : _connectSimulator),
-          ],
-        );
-
-      case _DiscoveryStatus.found:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(l.mixersFound, style: const TextStyle(fontSize: 12)),
-            const SizedBox(height: 8),
-            ..._consoles.map(
-              (c) =>
-                  _ConsoleCard(console: c, onTap: () => _connectToConsole(c)),
-            ),
-            _SimulatorCard(onTap: _isConnecting ? null : _connectSimulator),
-          ],
-        );
+        ),
+      );
     }
+
+    if (_consoles.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.warning_amber, color: Colors.orange, size: 18),
+            const SizedBox(width: 8),
+            Text(l.noMixerFound, style: const TextStyle(color: Colors.orange)),
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(l.mixersFound, style: const TextStyle(fontSize: 12)),
+    );
   }
 }
 

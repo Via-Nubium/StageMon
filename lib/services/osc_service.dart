@@ -12,7 +12,11 @@ class ConsoleInfo {
   final String name;
   final String model;
 
-  const ConsoleInfo({required this.ip, required this.name, required this.model});
+  const ConsoleInfo({
+    required this.ip,
+    required this.name,
+    required this.model,
+  });
 }
 
 class OscService {
@@ -100,12 +104,20 @@ class OscService {
   /// result. Deliberately kept here rather than read back out of
   /// OscDiagnostics: that is instrumentation, it can be removed, and its
   /// tallies are cleared by the diagnostics screen's replay button.
-  final ValueNotifier<List<String>> unansweredAddresses = ValueNotifier(const []);
+  final ValueNotifier<List<String>> unansweredAddresses = ValueNotifier(
+    const [],
+  );
 
-  final ValueNotifier<List<double>> channelLevels = ValueNotifier(List.filled(16, 0.0));
-  final ValueNotifier<List<double>> busLevels = ValueNotifier(List.filled(6, 0.0));
+  final ValueNotifier<List<double>> channelLevels = ValueNotifier(
+    List.filled(16, 0.0),
+  );
+  final ValueNotifier<List<double>> busLevels = ValueNotifier(
+    List.filled(6, 0.0),
+  );
   final ValueNotifier<List<double>> lineInLevels = ValueNotifier([0.0, 0.0]);
-  final ValueNotifier<List<double>> fxReturnLevels = ValueNotifier(List.filled(8, 0.0));
+  final ValueNotifier<List<double>> fxReturnLevels = ValueNotifier(
+    List.filled(8, 0.0),
+  );
   final ValueNotifier<bool> isReceiving = ValueNotifier(false);
 
   // Tracks wifi recovery so the socket gets recreated *after* the process is
@@ -125,45 +137,104 @@ class OscService {
     _wifiWasAvailable = nowAvailable;
   }
 
-  // Broadcasts /xinfo and collects all XR18/X18 responses until timeout.
   static ConsoleInfo _parseXinfo(String ip, List<dynamic> args) {
     final name = args.length > 1 ? args[1].toString() : ip;
     final model = args.length > 2 ? args[2].toString() : 'Unknown';
     return ConsoleInfo(ip: ip, name: name, model: model);
   }
 
-  static Future<List<ConsoleInfo>> findAllConsoles({
-    Duration timeout = const Duration(seconds: 3),
-  }) async {
-    final socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
-    socket.broadcastEnabled = true;
-    final consoles = <ConsoleInfo>[];
+  /// Broadcasts /xinfo [probeCount] times, one every [probeInterval], and
+  /// emits each console the first time it answers. The stream closes one
+  /// interval after the last probe, so the default 3 probes span a 6s window.
+  ///
+  /// A single broadcast is not reliable: a console busy answering another
+  /// client drops it, and the user was left pressing "search" again until one
+  /// probe happened to land. Repeating the probe costs nothing when the first
+  /// one works — a console already emitted is not emitted twice.
+  ///
+  /// Emitting per console rather than returning a list at the end is what
+  /// lets the connect screen show a card as soon as the console answers,
+  /// instead of holding everything back for the whole window.
+  static Stream<ConsoleInfo> discoverConsoles({
+    Duration probeInterval = const Duration(seconds: 2),
+    int probeCount = 3,
+  }) {
+    final controller = StreamController<ConsoleInfo>();
+    RawDatagramSocket? socket;
+    Timer? probeTimer;
+    final seen = <String>{};
 
-    socket.listen((event) {
-      if (event != RawSocketEvent.read) return;
-      final dg = socket.receive();
-      if (dg == null) return;
+    void stop() {
+      probeTimer?.cancel();
+      probeTimer = null;
+      socket?.close();
+      socket = null;
+    }
+
+    controller.onCancel = stop;
+
+    Future<void> run() async {
       try {
-        final reply = OSCMessage.fromBytes(dg.data);
-        if (reply.address == '/xinfo') {
-          final ip = dg.address.address;
-          if (consoles.any((c) => c.ip == ip)) return;
-          consoles.add(_parseXinfo(ip, reply.arguments));
+        socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
+      } catch (e) {
+        if (!controller.isClosed) {
+          controller.addError(e);
+          await controller.close();
         }
-      } catch (_) {}
-    });
+        return;
+      }
+      // The listener may have cancelled while the bind was in flight.
+      if (controller.isClosed) {
+        stop();
+        return;
+      }
+      socket!.broadcastEnabled = true;
+      socket!.listen((event) {
+        if (event != RawSocketEvent.read) return;
+        final dg = socket?.receive();
+        if (dg == null) return;
+        try {
+          final reply = OSCMessage.fromBytes(dg.data);
+          if (reply.address != '/xinfo') return;
+          final ip = dg.address.address;
+          if (!seen.add(ip)) return;
+          if (!controller.isClosed) {
+            controller.add(_parseXinfo(ip, reply.arguments));
+          }
+        } catch (_) {}
+      });
 
-    try {
-      final msg = OSCMessage('/xinfo', arguments: []);
-      socket.send(msg.toBytes(), InternetAddress('255.255.255.255'), 10024);
-    } catch (_) {}
+      var probesLeft = probeCount;
+      void probe() {
+        probesLeft--;
+        try {
+          final msg = OSCMessage('/xinfo', arguments: []);
+          socket!.send(
+            msg.toBytes(),
+            InternetAddress('255.255.255.255'),
+            10024,
+          );
+        } catch (_) {}
+      }
 
-    await Future.delayed(timeout);
-    socket.close();
-    return List.unmodifiable(consoles);
+      probe();
+      probeTimer = Timer.periodic(probeInterval, (_) {
+        // The tick after the last probe is the grace window for its replies.
+        if (probesLeft <= 0) {
+          stop();
+          controller.close();
+          return;
+        }
+        probe();
+      });
+    }
+
+    unawaited(run());
+    return controller.stream;
   }
 
-  static Future<ConsoleInfo?> queryConsole(String ip, {
+  static Future<ConsoleInfo?> queryConsole(
+    String ip, {
     Duration timeout = const Duration(seconds: 2),
   }) async {
     final socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
@@ -186,8 +257,10 @@ class OscService {
       socket.send(msg.toBytes(), InternetAddress(ip), 10024);
     } catch (_) {}
 
-    final result = await completer.future
-        .timeout(timeout, onTimeout: () => null);
+    final result = await completer.future.timeout(
+      timeout,
+      onTimeout: () => null,
+    );
     socket.close();
     return result;
   }
@@ -282,7 +355,9 @@ class OscService {
     // Remap [-24576, 0] → [0.0, 1.0]; below noise floor shows nothing.
     const noiseFloor = -16384;
     int16(int i) => i < available
-        ? ((data.getInt16(4 + i * 2, Endian.little) - noiseFloor) / (-noiseFloor).toDouble()).clamp(0.0, 1.0)
+        ? ((data.getInt16(4 + i * 2, Endian.little) - noiseFloor) /
+                  (-noiseFloor).toDouble())
+              .clamp(0.0, 1.0)
         : 0.0;
 
     channelLevels.value = List.generate(16, int16);
@@ -357,8 +432,9 @@ class OscService {
     _requestDrainTimer ??= Timer.periodic(_requestInterval, _drainRequests);
   }
 
-  void _recordQueueDepth() => OscDiagnostics.instance
-      .recordQueueDepth(_setQueue.length + _requestQueue.length);
+  void _recordQueueDepth() => OscDiagnostics.instance.recordQueueDepth(
+    _setQueue.length + _requestQueue.length,
+  );
 
   void _drainRequests(Timer timer) {
     if (_setQueue.isEmpty && _requestQueue.isEmpty) {
@@ -428,7 +504,9 @@ class OscService {
       // The fast rounds are spent. Publish what is missing and drop to the
       // slow tier rather than stopping — _retryRound stays at the ceiling, so
       // every later evaluation lands back here.
-      unansweredAddresses.value = List.unmodifiable(_awaitingReply.toList()..sort());
+      unansweredAddresses.value = List.unmodifiable(
+        _awaitingReply.toList()..sort(),
+      );
       // Gated on meters still arriving, which is a stronger signal than it
       // looks: the meter feed is a subscription this app renews every 9s and
       // the console drops after ~10s, so a blob landing now proves our packets
@@ -490,7 +568,9 @@ class OscService {
     _heartbeatTimer = null;
     _socket?.close();
     _socket = null;
-    AndroidNetworkBinder.wifiAvailable.removeListener(_onWifiAvailabilityChanged);
+    AndroidNetworkBinder.wifiAvailable.removeListener(
+      _onWifiAvailabilityChanged,
+    );
     unawaited(AndroidNetworkBinder.unbind());
     unansweredAddresses.dispose();
     channelLevels.dispose();
