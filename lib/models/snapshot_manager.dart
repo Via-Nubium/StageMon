@@ -80,28 +80,8 @@ class SnapshotManager {
     } catch (_) {}
   }
 
-  Future<void> add(
-    String name,
-    Map<int, double> values, {
-    Map<int, double>? panValues,
-    double? busLevel,
-    bool? busMuted,
-    Map<int, double>? fxReturnValues,
-    Map<int, double>? fxReturnPanValues,
-    double? lineInLevel,
-    double? lineInPan,
-  }) async {
-    snapshots.add(FaderSnapshot(
-      name: name,
-      values: Map.of(values),
-      panValues: panValues != null ? Map.of(panValues) : null,
-      busLevel: busLevel,
-      busMuted: busMuted,
-      fxReturnValues: fxReturnValues != null ? Map.of(fxReturnValues) : null,
-      fxReturnPanValues: fxReturnPanValues != null ? Map.of(fxReturnPanValues) : null,
-      lineInLevel: lineInLevel,
-      lineInPan: lineInPan,
-    ));
+  Future<void> add(FaderSnapshot snapshot) async {
+    snapshots.add(snapshot);
     await _persist();
   }
 
@@ -115,29 +95,11 @@ class SnapshotManager {
     await _persist();
   }
 
-  Future<void> overwrite(
-    int index,
-    Map<int, double> values, {
-    Map<int, double>? panValues,
-    double? busLevel,
-    bool? busMuted,
-    Map<int, double>? fxReturnValues,
-    Map<int, double>? fxReturnPanValues,
-    double? lineInLevel,
-    double? lineInPan,
-  }) async {
-    final name = snapshots[index].name;
-    snapshots[index] = FaderSnapshot(
-      name: name,
-      values: Map.of(values),
-      panValues: panValues != null ? Map.of(panValues) : null,
-      busLevel: busLevel,
-      busMuted: busMuted,
-      fxReturnValues: fxReturnValues != null ? Map.of(fxReturnValues) : null,
-      fxReturnPanValues: fxReturnPanValues != null ? Map.of(fxReturnPanValues) : null,
-      lineInLevel: lineInLevel,
-      lineInPan: lineInPan,
-    );
+  /// Replaces the snapshot at [index] but keeps its name: overwriting is
+  /// "re-take this snapshot", not "rename it to whatever the caller passed".
+  Future<void> overwrite(int index, FaderSnapshot snapshot) async {
+    snapshot.name = snapshots[index].name;
+    snapshots[index] = snapshot;
     await _persist();
   }
 

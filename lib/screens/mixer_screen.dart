@@ -12,6 +12,7 @@ import '../widgets/custom_fader.dart';
 import '../widgets/mute_button.dart';
 import '../widgets/pan_knob.dart';
 import '../widgets/group_fader.dart';
+import '../widgets/snapshots_sheet.dart';
 import '../models/snapshot_manager.dart';
 import '../models/mixer_layout_state.dart';
 import '../controllers/mixer_controller.dart';
@@ -540,236 +541,24 @@ class _MixerScreenState extends State<MixerScreen> {
     }
   }
 
-  Future<String?> _showNameDialog({required String defaultName}) {
-    return showDialog<String>(
-      context: context,
-      builder: (_) => _NameDialog(defaultName: defaultName),
-    );
-  }
+  FaderSnapshot _captureCurrentState(String name) => FaderSnapshot(
+    name: name,
+    values: Map.of(_ctrl.faderValues),
+    panValues: Map.of(_ctrl.panValues),
+    busLevel: _ctrl.busFaderValue,
+    busMuted: _ctrl.busMuted,
+    fxReturnValues: Map.of(_ctrl.fxReturnValues),
+    fxReturnPanValues: Map.of(_ctrl.fxReturnPanValues),
+    lineInLevel: _ctrl.lineInFaderValue,
+    lineInPan: _ctrl.lineInPanValue,
+  );
 
   void _openSnapshotsSheet() {
-    final l = AppLocalizations.of(context)!;
-    showModalBottomSheet(
+    showSnapshotsSheet(
       context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (sheetCtx) => StatefulBuilder(
-        builder: (sheetCtx, setSheetState) {
-          final maxSheetHeight = MediaQuery.of(sheetCtx).size.height * 0.85;
-          return SafeArea(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxHeight: maxSheetHeight),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    margin: const EdgeInsets.only(top: 12, bottom: 8),
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.white24,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
-                    child: Row(
-                      children: [
-                        Text(
-                          l.snapshotsTitle,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Spacer(),
-                        TextButton.icon(
-                          icon: const Icon(Icons.add, size: 18),
-                          label: Text(l.saveCurrentState),
-                          onPressed: () async {
-                            final name = await _showNameDialog(
-                              defaultName: l.snapshotDefaultName(
-                                _snapshots.snapshots.length + 1,
-                              ),
-                            );
-                            if (name == null || name.isEmpty) return;
-                            await _snapshots.add(
-                              name,
-                              Map.of(_ctrl.faderValues),
-                              panValues: Map.of(_ctrl.panValues),
-                              busLevel: _ctrl.busFaderValue,
-                              busMuted: _ctrl.busMuted,
-                              fxReturnValues: Map.of(_ctrl.fxReturnValues),
-                              fxReturnPanValues: Map.of(
-                                _ctrl.fxReturnPanValues,
-                              ),
-                              lineInLevel: _ctrl.lineInFaderValue,
-                              lineInPan: _ctrl.lineInPanValue,
-                            );
-                            setSheetState(() {});
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  if (_snapshots.snapshots.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 32),
-                      child: Text(l.noSnapshotsSaved),
-                    )
-                  else
-                    Flexible(
-                      child: ListView.separated(
-                        shrinkWrap: true,
-                        itemCount: _snapshots.snapshots.length,
-                        separatorBuilder: (_, _) => const Divider(height: 1),
-                        itemBuilder: (_, i) {
-                          final snap = _snapshots.snapshots[i];
-                          Future<void> showActions() async {
-                            final action = await showDialog<String>(
-                              context: context,
-                              builder: (d) => SimpleDialog(
-                                title: Text(snap.name),
-                                children: [
-                                  SimpleDialogOption(
-                                    onPressed: () =>
-                                        Navigator.pop(d, 'overwrite'),
-                                    child: Row(
-                                      children: [
-                                        const Icon(Icons.save_outlined),
-                                        const SizedBox(width: 12),
-                                        Text(l.saveSnapshot),
-                                      ],
-                                    ),
-                                  ),
-                                  SimpleDialogOption(
-                                    onPressed: () => Navigator.pop(d, 'rename'),
-                                    child: Row(
-                                      children: [
-                                        const Icon(Icons.edit_outlined),
-                                        const SizedBox(width: 12),
-                                        Text(l.rename),
-                                      ],
-                                    ),
-                                  ),
-                                  SimpleDialogOption(
-                                    onPressed: () => Navigator.pop(d, 'delete'),
-                                    child: Row(
-                                      children: [
-                                        const Icon(
-                                          Icons.delete_outline,
-                                          color: Colors.red,
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Text(
-                                          l.delete,
-                                          style: const TextStyle(
-                                            color: Colors.red,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  SimpleDialogOption(
-                                    onPressed: () => Navigator.pop(d),
-                                    child: Row(
-                                      children: [
-                                        const SizedBox(width: 36),
-                                        Text(l.cancel),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                            if (!mounted) return;
-                            if (action == 'overwrite') {
-                              final confirmed = await showDialog<bool>(
-                                context: context,
-                                builder: (d) => AlertDialog(
-                                  title: Text(l.saveSnapshot),
-                                  content: Text(
-                                    l.overwriteSnapshotConfirm(snap.name),
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(d, false),
-                                      child: Text(l.cancel),
-                                    ),
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(d, true),
-                                      child: Text(l.save),
-                                    ),
-                                  ],
-                                ),
-                              );
-                              if (confirmed == true) {
-                                await _snapshots.overwrite(
-                                  i,
-                                  Map.of(_ctrl.faderValues),
-                                  panValues: Map.of(_ctrl.panValues),
-                                  busLevel: _ctrl.busFaderValue,
-                                  busMuted: _ctrl.busMuted,
-                                  fxReturnValues: Map.of(_ctrl.fxReturnValues),
-                                  fxReturnPanValues: Map.of(
-                                    _ctrl.fxReturnPanValues,
-                                  ),
-                                  lineInLevel: _ctrl.lineInFaderValue,
-                                  lineInPan: _ctrl.lineInPanValue,
-                                );
-                                setSheetState(() {});
-                              }
-                            } else if (action == 'delete') {
-                              await _snapshots.remove(i);
-                              setSheetState(() {});
-                            } else if (action == 'rename') {
-                              final name = await _showNameDialog(
-                                defaultName: snap.name,
-                              );
-                              if (name != null && name.isNotEmpty) {
-                                await _snapshots.rename(i, name);
-                                setSheetState(() {});
-                              }
-                            }
-                          }
-
-                          return ListTile(
-                            title: Text(snap.name),
-                            subtitle: Text(
-                              snap.values.isEmpty
-                                  ? l.snapshotNoData
-                                  : l.snapshotChannels(snap.values.length),
-                              style: TextStyle(
-                                color: snap.values.isEmpty
-                                    ? Colors.orange
-                                    : null,
-                                fontSize: 12,
-                              ),
-                            ),
-                            onTap: () {
-                              Navigator.pop(sheetCtx);
-                              _restoreSnapshot(snap);
-                            },
-                            trailing: IconButton(
-                              icon: const Icon(Icons.more_vert),
-                              tooltip: l.layoutActionsTooltip,
-                              onPressed: showActions,
-                            ),
-                            onLongPress: showActions,
-                          );
-                        },
-                      ),
-                    ),
-                  const SizedBox(height: 8),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+      snapshots: _snapshots,
+      captureCurrent: _captureCurrentState,
+      onRestore: _restoreSnapshot,
     );
   }
 
@@ -1235,78 +1024,6 @@ class _MixerScreenState extends State<MixerScreen> {
           ),
         );
       },
-    );
-  }
-}
-
-class _NameDialog extends StatefulWidget {
-  final String defaultName;
-  const _NameDialog({required this.defaultName});
-
-  @override
-  State<_NameDialog> createState() => _NameDialogState();
-}
-
-class _NameDialogState extends State<_NameDialog> {
-  late final TextEditingController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: widget.defaultName);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    return Dialog(
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                l.snapshotNameTitle,
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _controller,
-                autofocus: true,
-                onSubmitted: (v) {
-                  final t = v.trim();
-                  if (t.isNotEmpty) Navigator.pop(context, t);
-                },
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text(l.cancel),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      final t = _controller.text.trim();
-                      if (t.isNotEmpty) Navigator.pop(context, t);
-                    },
-                    child: Text(l.save),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }
