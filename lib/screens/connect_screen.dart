@@ -15,6 +15,10 @@ class ConnectScreen extends StatefulWidget {
 }
 
 class _ConnectScreenState extends State<ConnectScreen> {
+  // Same cap as the fader rows in Settings: left to stretch, the cards,
+  // buttons and IP field run edge to edge on a landscape tablet.
+  static const double _maxContentWidth = 420;
+
   bool _isSearching = true;
   final List<ConsoleInfo> _consoles = [];
   StreamSubscription<ConsoleInfo>? _discoverySub;
@@ -240,63 +244,70 @@ class _ConnectScreenState extends State<ConnectScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Image.asset('assets/icon/icon.png', width: 96, height: 96),
-              const SizedBox(height: 12),
-              const Text(
-                "StageMon",
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 32),
-              _buildDiscoverySection(l),
-              const SizedBox(height: 16),
-              OutlinedButton.icon(
-                onPressed: _isSearching ? null : _discover,
-                icon: const Icon(Icons.search),
-                label: Text(l.search),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-              ),
-              const SizedBox(height: 80),
-              Row(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: _maxContentWidth),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Expanded(child: Divider()),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text(
-                      l.orEnterIpManually,
-                      style: const TextStyle(fontSize: 12),
+                  Image.asset('assets/icon/icon.png', width: 96, height: 96),
+                  const SizedBox(height: 12),
+                  const Text(
+                    "StageMon",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 32),
+                  _buildDiscoverySection(l),
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: _isSearching ? null : _discover,
+                    icon: const Icon(Icons.search),
+                    label: Text(l.search),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                   ),
-                  const Expanded(child: Divider()),
+                  const SizedBox(height: 80),
+                  Row(
+                    children: [
+                      const Expanded(child: Divider()),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text(
+                          l.orEnterIpManually,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                      const Expanded(child: Divider()),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: _ipController,
+                    keyboardType: TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: l.mixerIpLabel,
+                      hintText: l.mixerIpHint,
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: _isSearching || _isConnecting
+                        ? null
+                        : _connectManual,
+                    icon: const Icon(Icons.power_settings_new),
+                    label: Text(l.connect),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                  ),
                 ],
               ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: _ipController,
-                keyboardType: TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(
-                  labelText: l.mixerIpLabel,
-                  hintText: l.mixerIpHint,
-                  border: const OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: _isSearching || _isConnecting
-                    ? null
-                    : _connectManual,
-                icon: const Icon(Icons.power_settings_new),
-                label: Text(l.connect),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
