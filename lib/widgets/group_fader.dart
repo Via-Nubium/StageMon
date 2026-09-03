@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/channel_color.dart';
 import '../services/osc_service.dart';
+import '../utils/group_members.dart';
 import 'custom_fader.dart';
 
 const Color _kGroupColor = Color(0xFF00C853);
@@ -41,7 +42,7 @@ class GroupFader extends StatefulWidget {
 }
 
 class _GroupFaderState extends State<GroupFader> {
-  // Keys: channels 1-16, FX returns 101-104, Line In 200
+  // Keyed by group member — see utils/group_members.dart
   final Map<int, double> _memberValues = {};
   final Map<int, void Function(dynamic)> _listeners = {};
   final Map<int, Timer?> _throttleTimers = {};
@@ -65,22 +66,11 @@ class _GroupFaderState extends State<GroupFader> {
   Set<int> _subscribedKeys = {};
   int _subscribedBus = -1;
 
-  List<int> _allMemberKeys() => [
-    ...widget.channels,
-    ...widget.fxReturns.map((r) => 100 + r),
-    if (widget.lineIn) 200,
-  ];
-
-  String _oscAddressForKey(int key, int bus) {
-    final b = bus.toString().padLeft(2, '0');
-    if (key <= 16) {
-      return '/ch/${key.toString().padLeft(2, '0')}/mix/$b/level';
-    } else if (key < 200) {
-      return '/rtn/${key - 100}/mix/$b/level';
-    } else {
-      return '/rtn/aux/mix/$b/level';
-    }
-  }
+  List<int> _allMemberKeys() => groupMembers(
+    channels: widget.channels,
+    fxReturns: widget.fxReturns,
+    lineIn: widget.lineIn,
+  );
 
   double get _displayValue {
     final keys = _allMemberKeys();
@@ -135,10 +125,10 @@ class _GroupFaderState extends State<GroupFader> {
 
       _listeners[key] = listener;
       widget.service.addListener(
-        _oscAddressForKey(key, widget.busNum),
+        memberLevelAddress(key, widget.busNum),
         listener,
       );
-      widget.service.request(_oscAddressForKey(key, widget.busNum));
+      widget.service.request(memberLevelAddress(key, widget.busNum));
     }
   }
 
@@ -147,7 +137,7 @@ class _GroupFaderState extends State<GroupFader> {
       final l = _listeners[key];
       if (l != null) {
         widget.service.removeListener(
-          _oscAddressForKey(key, _subscribedBus),
+          memberLevelAddress(key, _subscribedBus),
           l,
         );
       }
@@ -171,7 +161,7 @@ class _GroupFaderState extends State<GroupFader> {
     ) {
       final v = _pendingValues[key];
       if (v != null) {
-        widget.service.send(_oscAddressForKey(key, widget.busNum), v);
+        widget.service.send(memberLevelAddress(key, widget.busNum), v);
         _pendingValues[key] = null;
       } else {
         _throttleTimers[key]?.cancel();
@@ -269,7 +259,7 @@ class _GroupFaderState extends State<GroupFader> {
     for (final key in _allMemberKeys()) {
       final v = _pendingValues[key];
       if (v != null) {
-        widget.service.send(_oscAddressForKey(key, widget.busNum), v);
+        widget.service.send(memberLevelAddress(key, widget.busNum), v);
         _pendingValues[key] = null;
       }
       _throttleTimers[key]?.cancel();

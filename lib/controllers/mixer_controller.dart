@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/osc_service.dart';
+import '../utils/osc_addresses.dart' as osc;
 import '../services/xr18_simulator.dart';
 
 class MixerController extends ChangeNotifier with WidgetsBindingObserver {
@@ -119,29 +120,29 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
   // controller while we were disconnected is missed.
   void _refreshAll() {
     for (final odd in [1, 3, 5]) {
-      service.request(_busLinkAddress(odd));
+      service.request(osc.busLinkAddress(odd));
     }
     for (int ch = 1; ch <= 16; ch++) {
       service.request(busAddress(ch));
       if (busPaired) service.request(panAddress(ch));
-      service.request('/ch/${ch.toString().padLeft(2, '0')}/config/name');
-      service.request(_channelColorAddress(ch));
+      service.request(osc.channelNameAddress(ch));
+      service.request(osc.channelColorAddress(ch));
     }
     for (int rtn = 1; rtn <= 4; rtn++) {
       service.request(fxReturnAddress(rtn));
       if (busPaired) service.request(fxReturnPanAddress(rtn));
-      service.request(_fxReturnColorAddress(rtn));
-      service.request(_fxReturnNameAddress(rtn));
+      service.request(osc.fxReturnColorAddress(rtn));
+      service.request(osc.fxReturnNameAddress(rtn));
     }
     for (int busNum = 1; busNum <= 6; busNum++) {
-      service.request(_buildBusNameAddress(busNum));
-      service.request(_busColorAddress(busNum));
+      service.request(osc.busNameAddress(busNum));
+      service.request(osc.busColorAddress(busNum));
     }
     service.request(lineInAddress());
     service.request(lineInPanAddress());
     service.request(busFaderAddress());
     service.request(busMuteAddress());
-    service.request(_lineInColorAddress);
+    service.request(osc.kLineInColorAddress);
   }
 
   // ── Bus link ──────────────────────────────────────────────────────────────
@@ -149,11 +150,10 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
   // tracked for all three pairs at once so both the mixer (current bus) and
   // the bus selector (all buses) can reflect it.
 
-  String _busLinkAddress(int odd) => '/config/buslink/$odd-${odd + 1}';
 
   void _trackBusLinks() {
     for (final odd in [1, 3, 5]) {
-      final address = _busLinkAddress(odd);
+      final address = osc.busLinkAddress(odd);
       void listener(dynamic value) {
         final paired = value == 1 || value == true;
         _onBusLinkChanged(odd, paired);
@@ -188,15 +188,15 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
     if (oldBus != null && oldBus != -1) {
       for (int ch = 1; ch <= 16; ch++) {
         final fl = _faderListeners[ch];
-        if (fl != null) service.removeListener(_buildBusAddress(ch, oldBus), fl);
+        if (fl != null) service.removeListener(osc.channelLevelAddress(ch, oldBus), fl);
         final pl = _panListeners[ch];
-        if (pl != null) service.removeListener(_buildPanAddress(ch, oldBus), pl);
+        if (pl != null) service.removeListener(osc.channelPanAddress(ch, oldBus), pl);
       }
       for (int rtn = 1; rtn <= 4; rtn++) {
         final fl = _fxReturnListeners[rtn];
-        if (fl != null) service.removeListener(_buildFxReturnAddress(rtn, oldBus), fl);
+        if (fl != null) service.removeListener(osc.fxReturnLevelAddress(rtn, oldBus), fl);
         final pl = _fxReturnPanListeners[rtn];
-        if (pl != null) service.removeListener(_buildFxReturnPanAddress(rtn, oldBus), pl);
+        if (pl != null) service.removeListener(osc.fxReturnPanAddress(rtn, oldBus), pl);
       }
     }
 
@@ -206,43 +206,43 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
         if (value is double) faderValues[ch] = value;
       }
       _faderListeners[ch] = faderListener;
-      service.addListener(_buildBusAddress(ch, busNum), faderListener);
-      service.request(_buildBusAddress(ch, busNum));
+      service.addListener(osc.channelLevelAddress(ch, busNum), faderListener);
+      service.request(osc.channelLevelAddress(ch, busNum));
 
       void panListener(dynamic value) {
         if (value is double) panValues[ch] = value;
       }
       _panListeners[ch] = panListener;
-      service.addListener(_buildPanAddress(ch, busNum), panListener);
-      service.request(_buildPanAddress(ch, busNum));
+      service.addListener(osc.channelPanAddress(ch, busNum), panListener);
+      service.request(osc.channelPanAddress(ch, busNum));
     }
     for (int rtn = 1; rtn <= 4; rtn++) {
       void fxListener(dynamic value) {
         if (value is double) fxReturnValues[rtn] = value;
       }
       _fxReturnListeners[rtn] = fxListener;
-      service.addListener(_buildFxReturnAddress(rtn, busNum), fxListener);
-      service.request(_buildFxReturnAddress(rtn, busNum));
+      service.addListener(osc.fxReturnLevelAddress(rtn, busNum), fxListener);
+      service.request(osc.fxReturnLevelAddress(rtn, busNum));
 
       void fxPanListener(dynamic value) {
         if (value is double) fxReturnPanValues[rtn] = value;
       }
       _fxReturnPanListeners[rtn] = fxPanListener;
-      service.addListener(_buildFxReturnPanAddress(rtn, busNum), fxPanListener);
-      service.request(_buildFxReturnPanAddress(rtn, busNum));
+      service.addListener(osc.fxReturnPanAddress(rtn, busNum), fxPanListener);
+      service.request(osc.fxReturnPanAddress(rtn, busNum));
     }
   }
 
   void _reRegisterBusFader({required int oldBus, required int newBus}) {
     if (_busFaderListener != null) {
-      service.removeListener(_buildBusFaderAddress(oldBus), _busFaderListener!);
-      service.addListener(_buildBusFaderAddress(newBus), _busFaderListener!);
-      service.request(_buildBusFaderAddress(newBus));
+      service.removeListener(osc.busFaderAddress(oldBus), _busFaderListener!);
+      service.addListener(osc.busFaderAddress(newBus), _busFaderListener!);
+      service.request(osc.busFaderAddress(newBus));
     }
     if (_busMuteListener != null) {
-      service.removeListener(_buildBusMuteAddress(oldBus), _busMuteListener!);
-      service.addListener(_buildBusMuteAddress(newBus), _busMuteListener!);
-      service.request(_buildBusMuteAddress(newBus));
+      service.removeListener(osc.busMuteAddress(oldBus), _busMuteListener!);
+      service.addListener(osc.busMuteAddress(newBus), _busMuteListener!);
+      service.request(osc.busMuteAddress(newBus));
     }
   }
 
@@ -252,34 +252,34 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
     final oldEb = effectiveBus;
     for (int ch = 1; ch <= 16; ch++) {
       final fl = _faderListeners[ch];
-      if (fl != null) service.removeListener(_buildBusAddress(ch, oldEb), fl);
+      if (fl != null) service.removeListener(osc.channelLevelAddress(ch, oldEb), fl);
       final pl = _panListeners[ch];
-      if (pl != null) service.removeListener(_buildPanAddress(ch, oldEb), pl);
+      if (pl != null) service.removeListener(osc.channelPanAddress(ch, oldEb), pl);
     }
     for (int rtn = 1; rtn <= 4; rtn++) {
       final fl = _fxReturnListeners[rtn];
-      if (fl != null) service.removeListener(_buildFxReturnAddress(rtn, oldEb), fl);
+      if (fl != null) service.removeListener(osc.fxReturnLevelAddress(rtn, oldEb), fl);
       final pl = _fxReturnPanListeners[rtn];
-      if (pl != null) service.removeListener(_buildFxReturnPanAddress(rtn, oldEb), pl);
+      if (pl != null) service.removeListener(osc.fxReturnPanAddress(rtn, oldEb), pl);
     }
     _faderListeners.clear();
     _panListeners.clear();
     _fxReturnListeners.clear();
     _fxReturnPanListeners.clear();
     if (_lineInFaderListener != null) {
-      service.removeListener(_buildLineInAddress(oldEb), _lineInFaderListener!);
+      service.removeListener(osc.lineInLevelAddress(oldEb), _lineInFaderListener!);
       _lineInFaderListener = null;
     }
     if (_lineInPanListener != null) {
-      service.removeListener(_buildLineInPanAddress(oldEb), _lineInPanListener!);
+      service.removeListener(osc.lineInPanAddress(oldEb), _lineInPanListener!);
       _lineInPanListener = null;
     }
     if (_busFaderListener != null) {
-      service.removeListener(_buildBusFaderAddress(oldEb), _busFaderListener!);
+      service.removeListener(osc.busFaderAddress(oldEb), _busFaderListener!);
       _busFaderListener = null;
     }
     if (_busMuteListener != null) {
-      service.removeListener(_buildBusMuteAddress(oldEb), _busMuteListener!);
+      service.removeListener(osc.busMuteAddress(oldEb), _busMuteListener!);
       _busMuteListener = null;
     }
 
@@ -317,14 +317,14 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
 
   void _reRegisterLineInFader({required int oldBus, required int newBus}) {
     if (_lineInFaderListener != null) {
-      service.removeListener(_buildLineInAddress(oldBus), _lineInFaderListener!);
-      service.addListener(_buildLineInAddress(newBus), _lineInFaderListener!);
-      service.request(_buildLineInAddress(newBus));
+      service.removeListener(osc.lineInLevelAddress(oldBus), _lineInFaderListener!);
+      service.addListener(osc.lineInLevelAddress(newBus), _lineInFaderListener!);
+      service.request(osc.lineInLevelAddress(newBus));
     }
     if (_lineInPanListener != null) {
-      service.removeListener(_buildLineInPanAddress(oldBus), _lineInPanListener!);
-      service.addListener(_buildLineInPanAddress(newBus), _lineInPanListener!);
-      service.request(_buildLineInPanAddress(newBus));
+      service.removeListener(osc.lineInPanAddress(oldBus), _lineInPanListener!);
+      service.addListener(osc.lineInPanAddress(newBus), _lineInPanListener!);
+      service.request(osc.lineInPanAddress(newBus));
     }
   }
 
@@ -410,7 +410,7 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
 
   void _loadChannelNames() {
     for (int ch = 1; ch <= 16; ch++) {
-      final address = '/ch/${ch.toString().padLeft(2, '0')}/config/name';
+      final address = osc.channelNameAddress(ch);
       void listener(dynamic value) {
         if (value is! String || _disposed) return;
         final name = value.trim().replaceAll('\x00', '');
@@ -426,7 +426,7 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
 
   void _loadBusNames() {
     for (int busNum = 1; busNum <= 6; busNum++) {
-      final address = _buildBusNameAddress(busNum);
+      final address = osc.busNameAddress(busNum);
       void listener(dynamic value) {
         if (value is! String || _disposed) return;
         final name = value.trim().replaceAll('\x00', '');
@@ -441,7 +441,7 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
 
   void _loadFxReturnNames() {
     for (int rtn = 1; rtn <= 4; rtn++) {
-      final address = _fxReturnNameAddress(rtn);
+      final address = osc.fxReturnNameAddress(rtn);
       void listener(dynamic value) {
         if (value is! String || _disposed) return;
         final name = value.trim().replaceAll('\x00', '');
@@ -456,7 +456,7 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
 
   void _loadChannelColors() {
     for (int ch = 1; ch <= 16; ch++) {
-      final address = _channelColorAddress(ch);
+      final address = osc.channelColorAddress(ch);
       void listener(dynamic value) {
         if (value is! int || _disposed) return;
         consoleChannelColors[ch] = value.clamp(0, 15);
@@ -475,13 +475,13 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
       notifyListeners();
     }
     _lineInColorListener = listener;
-    service.addListener(_lineInColorAddress, listener);
-    service.request(_lineInColorAddress);
+    service.addListener(osc.kLineInColorAddress, listener);
+    service.request(osc.kLineInColorAddress);
   }
 
   void _loadFxReturnColors() {
     for (int rtn = 1; rtn <= 4; rtn++) {
-      final address = _fxReturnColorAddress(rtn);
+      final address = osc.fxReturnColorAddress(rtn);
       void listener(dynamic value) {
         if (value is! int || _disposed) return;
         consoleFxReturnColors[rtn] = value.clamp(0, 15);
@@ -495,7 +495,7 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
 
   void _loadBusColors() {
     for (int busNum = 1; busNum <= 6; busNum++) {
-      final address = _busColorAddress(busNum);
+      final address = osc.busColorAddress(busNum);
       void listener(dynamic value) {
         if (value is! int || _disposed) return;
         consoleBusColors[busNum] = value.clamp(0, 15);
@@ -509,59 +509,15 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
 
   // ── OSC address helpers ───────────────────────────────────────────────────
 
-  String _buildBusAddress(int channel, int busNum) {
-    final ch = channel.toString().padLeft(2, '0');
-    final bus = busNum.toString().padLeft(2, '0');
-    return '/ch/$ch/mix/$bus/level';
-  }
 
-  String _buildBusFaderAddress(int busNum) => '/bus/$busNum/mix/fader';
-
-  String _buildBusNameAddress(int busNum) => '/bus/$busNum/config/name';
-
-  String _buildPanAddress(int channel, int busNum) {
-    final ch = channel.toString().padLeft(2, '0');
-    final bus = busNum.toString().padLeft(2, '0');
-    return '/ch/$ch/mix/$bus/pan';
-  }
-
-  String _buildFxReturnAddress(int rtn, int busNum) {
-    final bus = busNum.toString().padLeft(2, '0');
-    return '/rtn/$rtn/mix/$bus/level';
-  }
-
-  String _buildFxReturnPanAddress(int rtn, int busNum) {
-    final bus = busNum.toString().padLeft(2, '0');
-    return '/rtn/$rtn/mix/$bus/pan';
-  }
-
-  String _buildBusMuteAddress(int busNum) => '/bus/$busNum/mix/on';
-
-  String _buildLineInAddress(int busNum) {
-    final bus = busNum.toString().padLeft(2, '0');
-    return '/rtn/aux/mix/$bus/level';
-  }
-
-  String _buildLineInPanAddress(int busNum) {
-    final bus = busNum.toString().padLeft(2, '0');
-    return '/rtn/aux/mix/$bus/pan';
-  }
-
-  String _channelColorAddress(int channel) =>
-      '/ch/${channel.toString().padLeft(2, '0')}/config/color';
-  String _fxReturnColorAddress(int rtn) => '/rtn/$rtn/config/color';
-  String _fxReturnNameAddress(int rtn) => '/rtn/$rtn/config/name';
-  static const String _lineInColorAddress = '/rtn/aux/config/color';
-  String _busColorAddress(int busNum) => '/bus/$busNum/config/color';
-
-  String busAddress(int channel) => _buildBusAddress(channel, effectiveBus);
-  String busFaderAddress() => _buildBusFaderAddress(effectiveBus);
-  String panAddress(int channel) => _buildPanAddress(channel, effectiveBus);
-  String fxReturnAddress(int rtn) => _buildFxReturnAddress(rtn, effectiveBus);
-  String fxReturnPanAddress(int rtn) => _buildFxReturnPanAddress(rtn, effectiveBus);
-  String lineInAddress() => _buildLineInAddress(effectiveBus);
-  String lineInPanAddress() => _buildLineInPanAddress(effectiveBus);
-  String busMuteAddress() => _buildBusMuteAddress(effectiveBus);
+  String busAddress(int channel) => osc.channelLevelAddress(channel, effectiveBus);
+  String busFaderAddress() => osc.busFaderAddress(effectiveBus);
+  String panAddress(int channel) => osc.channelPanAddress(channel, effectiveBus);
+  String fxReturnAddress(int rtn) => osc.fxReturnLevelAddress(rtn, effectiveBus);
+  String fxReturnPanAddress(int rtn) => osc.fxReturnPanAddress(rtn, effectiveBus);
+  String lineInAddress() => osc.lineInLevelAddress(effectiveBus);
+  String lineInPanAddress() => osc.lineInPanAddress(effectiveBus);
+  String busMuteAddress() => osc.busMuteAddress(effectiveBus);
 
   String channelLabel(int ch) =>
       channelNames[ch] ?? 'Ch ${ch.toString().padLeft(2, '0')}';
@@ -580,38 +536,38 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
     _disposed = true;
     WidgetsBinding.instance.removeObserver(this);
     for (final entry in _nameListeners.entries) {
-      final address = '/ch/${entry.key.toString().padLeft(2, '0')}/config/name';
+      final address = osc.channelNameAddress(entry.key);
       service.removeListener(address, entry.value);
     }
     for (final entry in _busNameListeners.entries) {
-      service.removeListener(_buildBusNameAddress(entry.key), entry.value);
+      service.removeListener(osc.busNameAddress(entry.key), entry.value);
     }
     for (final entry in _fxReturnNameListeners.entries) {
-      service.removeListener(_fxReturnNameAddress(entry.key), entry.value);
+      service.removeListener(osc.fxReturnNameAddress(entry.key), entry.value);
     }
     for (final entry in _busColorListeners.entries) {
-      service.removeListener(_busColorAddress(entry.key), entry.value);
+      service.removeListener(osc.busColorAddress(entry.key), entry.value);
     }
     for (final entry in _colorListeners.entries) {
-      service.removeListener(_channelColorAddress(entry.key), entry.value);
+      service.removeListener(osc.channelColorAddress(entry.key), entry.value);
     }
     for (final entry in _fxReturnColorListeners.entries) {
-      service.removeListener(_fxReturnColorAddress(entry.key), entry.value);
+      service.removeListener(osc.fxReturnColorAddress(entry.key), entry.value);
     }
     if (_lineInColorListener != null) {
-      service.removeListener(_lineInColorAddress, _lineInColorListener!);
+      service.removeListener(osc.kLineInColorAddress, _lineInColorListener!);
     }
     for (int ch = 1; ch <= 16; ch++) {
       final fl = _faderListeners[ch];
-      if (fl != null) service.removeListener(_buildBusAddress(ch, _registeredBus), fl);
+      if (fl != null) service.removeListener(osc.channelLevelAddress(ch, _registeredBus), fl);
       final pl = _panListeners[ch];
-      if (pl != null) service.removeListener(_buildPanAddress(ch, _registeredBus), pl);
+      if (pl != null) service.removeListener(osc.channelPanAddress(ch, _registeredBus), pl);
     }
     for (int rtn = 1; rtn <= 4; rtn++) {
       final fl = _fxReturnListeners[rtn];
-      if (fl != null) service.removeListener(_buildFxReturnAddress(rtn, _registeredBus), fl);
+      if (fl != null) service.removeListener(osc.fxReturnLevelAddress(rtn, _registeredBus), fl);
       final pl = _fxReturnPanListeners[rtn];
-      if (pl != null) service.removeListener(_buildFxReturnPanAddress(rtn, _registeredBus), pl);
+      if (pl != null) service.removeListener(osc.fxReturnPanAddress(rtn, _registeredBus), pl);
     }
     if (_lineInFaderListener != null) {
       service.removeListener(lineInAddress(), _lineInFaderListener!);
@@ -626,7 +582,7 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
       service.removeListener(busMuteAddress(), _busMuteListener!);
     }
     for (final entry in _busLinkListeners.entries) {
-      service.removeListener(_busLinkAddress(entry.key), entry.value);
+      service.removeListener(osc.busLinkAddress(entry.key), entry.value);
     }
     service.channelLevels.removeListener(_onChannelMeters);
     service.busLevels.removeListener(_onBusMeters);

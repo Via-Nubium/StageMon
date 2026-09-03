@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:osc/osc.dart';
 import 'android_network_binder.dart';
 import 'osc_diagnostics.dart';
+import '../utils/osc_addresses.dart';
 
 class ConsoleInfo {
   final String ip;
@@ -195,7 +196,7 @@ class OscService {
         if (dg == null) return;
         try {
           final reply = OSCMessage.fromBytes(dg.data);
-          if (reply.address != '/xinfo') return;
+          if (reply.address != kInfoAddress) return;
           final ip = dg.address.address;
           if (!seen.add(ip)) return;
           if (!controller.isClosed) {
@@ -208,7 +209,7 @@ class OscService {
       void probe() {
         probesLeft--;
         try {
-          final msg = OSCMessage('/xinfo', arguments: []);
+          final msg = OSCMessage(kInfoAddress, arguments: []);
           socket!.send(
             msg.toBytes(),
             InternetAddress('255.255.255.255'),
@@ -246,14 +247,14 @@ class OscService {
       if (dg == null) return;
       try {
         final reply = OSCMessage.fromBytes(dg.data);
-        if (reply.address == '/xinfo' && !completer.isCompleted) {
+        if (reply.address == kInfoAddress && !completer.isCompleted) {
           completer.complete(_parseXinfo(ip, reply.arguments));
         }
       } catch (_) {}
     });
 
     try {
-      final msg = OSCMessage('/xinfo', arguments: []);
+      final msg = OSCMessage(kInfoAddress, arguments: []);
       socket.send(msg.toBytes(), InternetAddress(ip), 10024);
     } catch (_) {}
 
@@ -308,7 +309,7 @@ class OscService {
     if (dg == null) return;
     try {
       final msg = OSCMessage.fromBytes(dg.data);
-      if (msg.address == '/meters/1') {
+      if (msg.address == kMeterBank1Address) {
         OscDiagnostics.instance.recordMeterPacket();
         _parseMeterBlob(msg);
         return;
@@ -383,16 +384,16 @@ class OscService {
   void _sendXremote() {
     if (_socket == null) return;
     try {
-      final msg = OSCMessage('/xremote', arguments: []);
+      final msg = OSCMessage(kRemoteAddress, arguments: []);
       _socket!.send(msg.toBytes(), InternetAddress(ip.trim()), port);
     } catch (_) {}
-    _subscribeMeter('/meters/1');
+    _subscribeMeter(kMeterBank1Address);
   }
 
   void _subscribeMeter(String bank) {
     if (_socket == null) return;
     try {
-      final msg = OSCMessage('/meters', arguments: [bank]);
+      final msg = OSCMessage(kMetersAddress, arguments: [bank]);
       _socket!.send(msg.toBytes(), InternetAddress(ip.trim()), port);
     } catch (_) {}
   }

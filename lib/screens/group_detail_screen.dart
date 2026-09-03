@@ -3,6 +3,7 @@ import 'package:stagemon/l10n/app_localizations.dart';
 import '../services/osc_service.dart';
 import '../models/group_fader_config.dart';
 import '../widgets/custom_fader.dart';
+import '../utils/group_members.dart';
 import '../widgets/pan_knob.dart';
 import 'group_config_screen.dart';
 
@@ -65,52 +66,31 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     _configs = widget.configs;
   }
 
-  // Encoded keys: channels 1-16, FX returns 101-104, Line In 200
-  List<int> get _allMembers {
-    final channels = _config.channels.toList()..sort();
-    final fxReturns = _config.fxReturns.map((r) => 100 + r).toList()..sort();
-    return [
-      ...channels,
-      if (_config.lineIn) 200,
-      ...fxReturns,
-    ];
-  }
-
-  String _memberAddress(int key) {
-    final b = widget.busNum.toString().padLeft(2, '0');
-    if (key <= 16) return '/ch/${key.toString().padLeft(2, '0')}/mix/$b/level';
-    if (key < 200) return '/rtn/${key - 100}/mix/$b/level';
-    return '/rtn/aux/mix/$b/level';
-  }
-
-  String _memberPanAddress(int key) {
-    final b = widget.busNum.toString().padLeft(2, '0');
-    if (key <= 16) return '/ch/${key.toString().padLeft(2, '0')}/mix/$b/pan';
-    if (key < 200) return '/rtn/${key - 100}/mix/$b/pan';
-    return '/rtn/aux/mix/$b/pan';
-  }
+  List<int> get _allMembers => groupMembers(
+    channels: _config.channels,
+    fxReturns: _config.fxReturns,
+    lineIn: _config.lineIn,
+  );
 
   String _memberLabel(int key) {
-    if (key <= 16) return widget.channelNames[key] ?? 'Ch ${key.toString().padLeft(2, '0')}';
-    if (key < 200) {
-      return widget.fxReturnNames[key - 100] ?? 'FX ${key - 100}';
+    if (isChannelMember(key)) {
+      return widget.channelNames[key] ?? 'Ch ${key.toString().padLeft(2, '0')}';
+    }
+    if (isFxReturnMember(key)) {
+      final rtn = fxReturnOf(key);
+      return widget.fxReturnNames[rtn] ?? 'FX $rtn';
     }
     return 'LINE';
   }
 
-  Color? _memberColor(int key) {
-    if (key > 16 && key < 200) return Colors.teal;
-    return null;
-  }
+  Color? _memberColor(int key) => isFxReturnMember(key) ? Colors.teal : null;
 
   int _memberNameColorIndex(int key) {
-    if (key <= 16) {
-      return widget.channelColors[key] ??
-          widget.consoleChannelColors[key] ??
-          0;
+    if (isChannelMember(key)) {
+      return widget.channelColors[key] ?? widget.consoleChannelColors[key] ?? 0;
     }
-    if (key < 200) {
-      final rtn = key - 100;
+    if (isFxReturnMember(key)) {
+      final rtn = fxReturnOf(key);
       return widget.fxReturnColors[rtn] ??
           widget.consoleFxReturnColors[rtn] ??
           0;
@@ -119,14 +99,18 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   }
 
   ValueNotifier<double> _memberMeterL(int key) {
-    if (key <= 16) return widget.meterLevels[key - 1];
-    if (key < 200) return widget.fxReturnMeterL[key - 101];
+    if (isChannelMember(key)) return widget.meterLevels[key - 1];
+    if (isFxReturnMember(key)) {
+      return widget.fxReturnMeterL[fxReturnOf(key) - 1];
+    }
     return widget.lineInMeterL;
   }
 
   ValueNotifier<double>? _memberMeterR(int key) {
-    if (key <= 16) return null;
-    if (key < 200) return widget.fxReturnMeterR[key - 101];
+    if (isChannelMember(key)) return null;
+    if (isFxReturnMember(key)) {
+      return widget.fxReturnMeterR[fxReturnOf(key) - 1];
+    }
     return widget.lineInMeterR;
   }
 
@@ -197,7 +181,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         if (widget.busPaired)
           PanKnob(
             key: ValueKey('pan_$key'),
-            oscAddress: _memberPanAddress(key),
+            oscAddress: memberPanAddress(key, widget.busNum),
             service: widget.service,
           )
         else
@@ -206,7 +190,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           child: CustomFader(
             key: ValueKey(key),
             label: _memberLabel(key),
-            oscAddress: _memberAddress(key),
+            oscAddress: memberLevelAddress(key, widget.busNum),
             service: widget.service,
             accentColor: accentColor ?? const Color(0xFF2979FF),
             nameColorIndex: _memberNameColorIndex(key),

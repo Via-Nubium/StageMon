@@ -4,6 +4,7 @@ import 'dart:math';
 import 'dart:typed_data';
 import 'package:osc/osc.dart';
 import '../models/channel_color.dart';
+import '../utils/osc_addresses.dart';
 
 /// Embedded fake XR18 console for the "simulador mode" onboarding flow.
 ///
@@ -84,46 +85,36 @@ class XR18Simulator {
 
   // ── State ──────────────────────────────────────────────────────────────
 
-  static String _pad2(int n) => n.toString().padLeft(2, '0');
-  static String _chLevel(int ch, int bus) => '/ch/${_pad2(ch)}/mix/${_pad2(bus)}/level';
-  static String _chPan(int ch, int bus) => '/ch/${_pad2(ch)}/mix/${_pad2(bus)}/pan';
-  static String _rtnLevel(int rtn, int bus) => '/rtn/$rtn/mix/${_pad2(bus)}/level';
-  static String _rtnPan(int rtn, int bus) => '/rtn/$rtn/mix/${_pad2(bus)}/pan';
-  static String _lineInLevel(int bus) => '/rtn/aux/mix/${_pad2(bus)}/level';
-  static String _lineInPan(int bus) => '/rtn/aux/mix/${_pad2(bus)}/pan';
-  static String _busFader(int bus) => '/bus/$bus/mix/fader';
-  static String _busMute(int bus) => '/bus/$bus/mix/on';
-
   void _seedDefaults() {
     for (int ch = 1; ch <= 16; ch++) {
       for (int bus = 1; bus <= 6; bus++) {
-        _state[_chLevel(ch, bus)] = _channelLevels[ch - 1];
-        _state[_chPan(ch, bus)] = 0.5;
+        _state[channelLevelAddress(ch, bus)] = _channelLevels[ch - 1];
+        _state[channelPanAddress(ch, bus)] = 0.5;
       }
-      _state['/ch/${_pad2(ch)}/config/color'] = _channelColorValue;
-      _state['/ch/${_pad2(ch)}/config/name'] = _emptyName;
+      _state[channelColorAddress(ch)] = _channelColorValue;
+      _state[channelNameAddress(ch)] = _emptyName;
     }
     for (int rtn = 1; rtn <= 4; rtn++) {
       for (int bus = 1; bus <= 6; bus++) {
-        _state[_rtnLevel(rtn, bus)] = 0.3;
-        _state[_rtnPan(rtn, bus)] = 0.5;
+        _state[fxReturnLevelAddress(rtn, bus)] = 0.3;
+        _state[fxReturnPanAddress(rtn, bus)] = 0.5;
       }
-      _state['/rtn/$rtn/config/color'] = _rtnColorValue;
-      _state['/rtn/$rtn/config/name'] = _emptyName;
+      _state[fxReturnColorAddress(rtn)] = _rtnColorValue;
+      _state[fxReturnNameAddress(rtn)] = _emptyName;
     }
-    _state['/rtn/aux/config/color'] = _lineInColor;
+    _state[kLineInColorAddress] = _lineInColor;
     for (int bus = 1; bus <= 6; bus++) {
-      _state[_lineInLevel(bus)] = 0.3;
-      _state[_lineInPan(bus)] = 0.5;
-      _state[_busFader(bus)] = 0.75;
-      _state[_busMute(bus)] = 1;
-      _state['/bus/$bus/config/color'] = _busColorValue;
-      _state['/bus/$bus/config/name'] = _emptyName;
+      _state[lineInLevelAddress(bus)] = 0.3;
+      _state[lineInPanAddress(bus)] = 0.5;
+      _state[busFaderAddress(bus)] = 0.75;
+      _state[busMuteAddress(bus)] = 1;
+      _state[busColorAddress(bus)] = _busColorValue;
+      _state[busNameAddress(bus)] = _emptyName;
     }
     // Bus 1-2 stereo-paired by default so the demo shows pan knobs / stereo behavior.
-    _state['/config/buslink/1-2'] = 1;
-    _state['/config/buslink/3-4'] = 0;
-    _state['/config/buslink/5-6'] = 0;
+    _state[busLinkAddress(1)] = 1;
+    _state[busLinkAddress(3)] = 0;
+    _state[busLinkAddress(5)] = 0;
   }
 
   // ── Protocol ───────────────────────────────────────────────────────────
@@ -141,7 +132,7 @@ class XR18Simulator {
   void _handle(OSCMessage msg, InternetAddress addr, int port) {
     final address = msg.address;
 
-    if (address == '/meters' && msg.arguments.isNotEmpty && msg.arguments.first == '/meters/1') {
+    if (address == kMetersAddress && msg.arguments.isNotEmpty && msg.arguments.first == kMeterBank1Address) {
       _meterSubAddr = addr;
       _meterSubPort = port;
       return;
@@ -179,7 +170,7 @@ class XR18Simulator {
     final t = DateTime.now().difference(_startTime!).inMilliseconds / 1000.0;
     final blob = _buildMeterBlob(_generateMeterValues(t));
     try {
-      final msg = OSCMessage('/meters/1', arguments: [blob]);
+      final msg = OSCMessage(kMeterBank1Address, arguments: [blob]);
       _socket!.send(msg.toBytes(), addr, port);
     } catch (_) {}
   }
@@ -237,7 +228,7 @@ class XR18Simulator {
     }
 
     for (int i = 0; i < 6; i++) {
-      final fader = (_state[_busFader(i + 1)] as double?) ?? 0.75;
+      final fader = (_state[busFaderAddress(i + 1)] as double?) ?? 0.75;
       final baseLvl = 0.82 * fader;
       final envelope = baseLvl * (0.80 + 0.20 * sin(t * (0.28 + i * 0.07) + i * 0.9));
       final signal = envelope * (0.60 + 0.40 * sin(t * (1.9 + i * 0.09) + i * 1.1).abs());
