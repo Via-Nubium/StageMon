@@ -25,6 +25,13 @@ class XR18Simulator {
     0.66, 0.45, 0.40, 0.35, 0.42, 0.20, 0.20, 0.0,
   ];
 
+  // Scribble-strip names, empty like a console with none configured. Seeded
+  // rather than left out so the address *answers*: an unanswered name request
+  // used to be invisible behind the app's 'Ch 07' fallback, but now keeps the
+  // retry rounds cycling forever against an address that looks unreachable.
+  // The empty string reaches that same fallback, so the mixer looks unchanged.
+  static const _emptyName = '';
+
   static const _channelColorValue = ConsoleColor.off; // all 16 channels
   static const _lineInColor = ConsoleColor.offi;
   static const _rtnColorValue = ConsoleColor.cyi; // all 4 FX returns
@@ -94,6 +101,7 @@ class XR18Simulator {
         _state[_chPan(ch, bus)] = 0.5;
       }
       _state['/ch/${_pad2(ch)}/config/color'] = _channelColorValue;
+      _state['/ch/${_pad2(ch)}/config/name'] = _emptyName;
     }
     for (int rtn = 1; rtn <= 4; rtn++) {
       for (int bus = 1; bus <= 6; bus++) {
@@ -109,6 +117,7 @@ class XR18Simulator {
       _state[_busFader(bus)] = 0.75;
       _state[_busMute(bus)] = 1;
       _state['/bus/$bus/config/color'] = _busColorValue;
+      _state['/bus/$bus/config/name'] = _emptyName;
     }
     // Bus 1-2 stereo-paired by default so the demo shows pan knobs / stereo behavior.
     _state['/config/buslink/1-2'] = 1;

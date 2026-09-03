@@ -24,6 +24,9 @@ Interactive commands (type after the '> ' prompt):
     snap                         List all snapshots
     snap load <N>                Load snapshot N and push /-snap/index to connected app
     snap name <N> <name>         Set snapshot name
+    silence [<prefix>|clear]     Stop answering addresses starting with <prefix>
+    silence drop <prefix>        Same, but discard writes instead of silently applying them
+    unsilence <prefix>           Remove one silenced prefix
     clients                      List registered /xremote clients
     q / quit                     Exit
 """
@@ -34,7 +37,7 @@ import struct
 import threading
 import time
 import argparse
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 PORT = 10024
 FIRMWARE = "1.18-sim"
@@ -155,6 +158,19 @@ class XR18Simulator:
         self._meter_lock = threading.Lock()
         self._meters_enabled = True   # set to False via 'meters off' command
 
+        # Address prefixes the console pretends not to know about, set via the
+        # 'silence' command. Reproduces a smaller console (an XR12 has no
+        # /ch/13..16 at all) and lost traffic.
+        #
+        # prefix → drop, which only affects writes and separates the two ways a
+        # write can fail. False: the SET arrived and was applied, its echo went
+        # missing — a re-read returns the new value and the fader stays put.
+        # True: the SET never arrived — a re-read returns the old value and the
+        # fader snaps back, which is the behaviour the whole echo-tracking
+        # mechanism exists to produce. Reads are ignored either way.
+        self._silenced: Dict[str, bool] = {}
+        self._silence_lock = threading.Lock()
+
         self._running = False
         self._print_lock = threading.Lock()
         self._init_state()
@@ -174,11 +190,15 @@ class XR18Simulator:
                 self._state[f'/rtn/{rtn}/config/color'] = 2  # GN
                 for bus in range(1, 7):
                     bs = str(bus).zfill(2)
+                    self._state[f'/rtn/{rtn}/mix/{bs}/level'] = 0.0
+                    self._state[f'/rtn/{rtn}/mix/{bs}/pan'] = 0.5
                     self._state[f'/rtn/{rtn}/mix/{bs}/grpon'] = 1
             self._state['/rtn/aux/config/color'] = 3  # YE, Line In
             for bus in range(1, 7):
                 bs = str(bus).zfill(2)
-                self._state[f'/rtn/aux/mix/{bs}/grpon'] = 1  # Line In
+                self._state[f'/rtn/aux/mix/{bs}/level'] = 0.0  # Line In
+                self._state[f'/rtn/aux/mix/{bs}/pan'] = 0.5
+                self._state[f'/rtn/aux/mix/{bs}/grpon'] = 1
             _sample_bus_names = [
                 'Monitor 1', 'Monitor 2', 'IEM Bajo', 'IEM Voz',
                 'Grabacion', 'FX Send',
@@ -242,6 +262,15 @@ class XR18Simulator:
         for client in clients:
             self._send(client, msg)
 
+    def _silence_mode(self, address: str) -> Optional[bool]:
+        """None when the address answers normally; otherwise the prefix's drop
+        flag (True = discard writes, False = apply them but stay quiet)."""
+        with self._silence_lock:
+            for prefix, drop in self._silenced.items():
+                if address.startswith(prefix):
+                    return drop
+        return None
+
     def _handle(self, data: bytes, sender: Tuple[str, int]) -> None:
         address, args = osc_parse(data)
         if not address:
@@ -269,6 +298,22 @@ class XR18Simulator:
 
         if address == '/-snap/load' and args:
             self._load_snapshot(int(args[0]), sender)
+            return
+
+        drop = self._silence_mode(address)
+        if drop is not None:
+            # No reply and no /xremote push. Deliberately placed after /xinfo,
+            # /xremote and /meters so the heartbeat stays alive: an app that
+            # still believes it is connected, yet never hears back about these
+            # addresses, is exactly the case worth testing.
+            if not args:
+                self._log(f'[SLNC] GET {address} (ignored)')
+            elif drop:
+                self._log(f'[SLNC] SET {address} = {args[0]!r} (dropped, not applied)')
+            else:
+                with self._state_lock:
+                    self._state[address] = args[0]
+                self._log(f'[SLNC] SET {address} = {args[0]!r} (applied, not echoed)')
             return
 
         if args:
@@ -397,7 +442,7 @@ class XR18Simulator:
         print(f'XR18 Simulator — {ip}:{self._port}')
         print(f'Name: {self._device_name}  |  Model: {self._model}')
         print()
-        print('Commands: state [bus] | set <addr> <val> | link <1-3> <0/1> | name <ch> <name> | busname <bus 1-6> <name> | color [ch|fx|bus] <n> <0-15> | color line <0-15> | lr [fader x | mute x] | meters [on|off] | snap [load N | name N x] | clients | q')
+        print('Commands: state [bus] | set <addr> <val> | link <1-3> <0/1> | name <ch> <name> | busname <bus 1-6> <name> | color [ch|fx|bus] <n> <0-15> | color line <0-15> | lr [fader x | mute x] | meters [on|off] | snap [load N | name N x] | silence [drop] <prefix> | clients | q')
         print()
 
         recv_thread = threading.Thread(target=self._recv_loop, daemon=True)
@@ -750,6 +795,42 @@ class XR18Simulator:
                         print('  (no snapshots defined)')
                     print()
 
+            elif cmd in ('silence', 'unsilence'):
+                rest = parts[1:]
+                drop = cmd == 'silence' and len(rest) > 1 and rest[0].lower() == 'drop'
+                if drop:
+                    rest = rest[1:]
+                arg = ' '.join(rest).strip()
+                with self._silence_lock:
+                    if cmd == 'silence' and arg in ('clear', 'none', 'off'):
+                        n = len(self._silenced)
+                        self._silenced.clear()
+                        print(f'  Answering everything again ({n} prefix(es) cleared).')
+                    elif not arg:
+                        if self._silenced:
+                            print('  Silenced prefixes:')
+                            for pfx, d in self._silenced.items():
+                                how = 'writes dropped' if d else 'writes applied, never echoed'
+                                print(f'    {pfx:32} ({how})')
+                        else:
+                            print('  Nothing silenced; every known address answers.')
+                    elif cmd == 'silence':
+                        was = self._silenced.get(arg)
+                        self._silenced[arg] = drop
+                        how = 'dropping writes' if drop else 'applying writes but never echoing'
+                        if was is None:
+                            print(f'  Silenced: {arg} ({how})')
+                            print('  (matches any address starting with that text)')
+                        elif was != drop:
+                            print(f'  Updated: {arg} is now {how}')
+                        else:
+                            print(f'  Already silenced: {arg} ({how})')
+                    else:
+                        if self._silenced.pop(arg, None) is not None:
+                            print(f'  Answering again: {arg}')
+                        else:
+                            print(f'  Not silenced: {arg}')
+
             elif cmd == 'clients':
                 now = time.time()
                 with self._xremote_lock:
@@ -784,6 +865,16 @@ class XR18Simulator:
                 print('  snap                         List all snapshots')
                 print('  snap load <N>                Load snapshot N (pushes /-snap/index to app)')
                 print('  snap name <N> <name>         Set snapshot name')
+                print('  silence                      List silenced address prefixes')
+                print('  silence <prefix>             Stop answering addresses starting with <prefix>')
+                print('    silence /ch/07             → whole channel 7 (name, color, every mix)')
+                print('    silence /ch/07/config/name → just that one address')
+                print('    /xinfo, /xremote and /meters keep working, so the app stays "connected"')
+                print('  silence drop <prefix>        Same, but also discard writes instead of applying them')
+                print('    default   → write applied, echo lost; a re-read confirms it, fader stays put')
+                print('    with drop → write never arrived; a re-read returns the old value, fader snaps back')
+                print('  silence clear                Answer everything again')
+                print('  unsilence <prefix>           Remove one silenced prefix')
                 print('  clients                      Show registered /xremote clients')
                 print('  q / quit                     Exit')
 

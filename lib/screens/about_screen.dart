@@ -3,6 +3,8 @@ import 'package:stagemon/l10n/app_localizations.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'diagnostics_screen.dart';
+
 const _privacyPolicyUrl = 'https://via-nubium.github.io/stagemon/privacy.html';
 
 class AboutScreen extends StatefulWidget {
@@ -15,6 +17,21 @@ class AboutScreen extends StatefulWidget {
 class _AboutScreenState extends State<AboutScreen> {
   String _version = '';
   String _buildNumber = '';
+
+  // Standard Android "hidden developer screen" gesture. Diagnostics ships in
+  // release because that is where the connection problems it measures are
+  // expected to show up, but nobody finds it by accident.
+  static const int _tapsToRevealDiagnostics = 7;
+  int _versionTaps = 0;
+  bool _diagnosticsRevealed = false;
+
+  void _onVersionTap() {
+    if (_diagnosticsRevealed) return;
+    _versionTaps++;
+    if (_versionTaps >= _tapsToRevealDiagnostics) {
+      setState(() => _diagnosticsRevealed = true);
+    }
+  }
 
   @override
   void initState() {
@@ -56,9 +73,16 @@ class _AboutScreenState extends State<AboutScreen> {
           ),
           if (_version.isNotEmpty)
             Center(
-              child: Text(
-                '${l.version} $_version ($_buildNumber)',
-                style: const TextStyle(fontSize: 13, color: Colors.white54),
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _onVersionTap,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
+                  child: Text(
+                    '${l.version} $_version ($_buildNumber)',
+                    style: const TextStyle(fontSize: 13, color: Colors.white54),
+                  ),
+                ),
               ),
             ),
           const SizedBox(height: 32),
@@ -86,6 +110,18 @@ class _AboutScreenState extends State<AboutScreen> {
               applicationVersion: _version.isNotEmpty ? _version : null,
             ),
           ),
+          if (_diagnosticsRevealed) ...[
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.network_check, size: 20),
+              title: const Text('Diagnostics'),
+              trailing: const Icon(Icons.chevron_right, size: 18, color: Colors.white54),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const DiagnosticsScreen()),
+              ),
+            ),
+          ],
           const Divider(),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),

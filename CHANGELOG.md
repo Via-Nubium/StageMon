@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+### Fixed
+- Fixed channel and bus names, scribble-strip colors and fader positions sometimes coming up blank or stale when connecting to the mixer. StageMon now spaces those requests out to avoid overloading the mixer and asks again for anything that doesn't come back, so the mixer state loads completely even on the console's own wifi, or while another app is keeping the connection busy at the same time.
+
+### Changed
+- Every change StageMon sends to the mixer — fader, pan, mute — is now confirmed by the mixer before StageMon considers it done. If no confirmation arrives, the value is read back, so what's on screen always reflects what the mixer actually has.
+- Recalling a snapshot now moves the faders over about half a second instead of all at once, so every change reaches the mixer reliably.
+
 ## [1.1.0] - 2026-08-28
 
 ### Added
