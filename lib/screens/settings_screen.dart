@@ -15,6 +15,7 @@ import 'layouts_screen.dart';
 class SettingsScreen extends StatefulWidget {
   final MixerLayoutState layout;
   final Map<int, String> channelNames;
+  final Map<int, String> fxReturnNames;
   final Map<int, String> busNames;
   final Map<int, bool> busLinked;
   final Map<int, int> consoleChannelColors;
@@ -30,6 +31,7 @@ class SettingsScreen extends StatefulWidget {
     super.key,
     required this.layout,
     required this.channelNames,
+    required this.fxReturnNames,
     required this.busNames,
     required this.busLinked,
     required this.consoleChannelColors,
@@ -101,7 +103,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ),
     for (var rtn = 1; rtn <= 4; rtn++)
       ColorableFader(
-        label: 'FX $rtn',
+        label: widget.fxReturnNames[rtn] ?? 'FX $rtn',
         colorIndex: _state.fxReturnColors[rtn],
         onChanged: (index) => setState(() {
           _state = _state.copyWith(
@@ -371,6 +373,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           configs: _state.groups,
           groupIndex: index,
           channelNames: widget.channelNames,
+          fxReturnNames: widget.fxReturnNames,
         ),
       ),
     );
@@ -519,7 +522,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         children: List.generate(4, (i) {
                           final rtn = i + 1;
                           return _colorableChip(
-                            label: 'FX $rtn',
+                            label: widget.fxReturnNames[rtn] ?? 'FX $rtn',
                             selected: _state.fxReturns.contains(rtn),
                             onSelected: (on) => setState(() {
                               final fxReturns = Set<int>.of(_state.fxReturns);

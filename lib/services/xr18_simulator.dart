@@ -109,6 +109,7 @@ class XR18Simulator {
         _state[_rtnPan(rtn, bus)] = 0.5;
       }
       _state['/rtn/$rtn/config/color'] = _rtnColorValue;
+      _state['/rtn/$rtn/config/name'] = _emptyName;
     }
     _state['/rtn/aux/config/color'] = _lineInColor;
     for (int bus = 1; bus <= 6; bus++) {

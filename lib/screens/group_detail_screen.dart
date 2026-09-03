@@ -12,6 +12,7 @@ class GroupDetailScreen extends StatefulWidget {
   final int busNum;
   final bool busPaired;
   final Map<int, String> channelNames;
+  final Map<int, String> fxReturnNames;
   final Map<int, int?> channelColors;
   final int? lineInColor;
   final Map<int, int?> fxReturnColors;
@@ -33,6 +34,7 @@ class GroupDetailScreen extends StatefulWidget {
     required this.busNum,
     required this.busPaired,
     required this.channelNames,
+    required this.fxReturnNames,
     required this.channelColors,
     required this.lineInColor,
     required this.fxReturnColors,
@@ -90,7 +92,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
   String _memberLabel(int key) {
     if (key <= 16) return widget.channelNames[key] ?? 'Ch ${key.toString().padLeft(2, '0')}';
-    if (key < 200) return 'FX ${key - 100}';
+    if (key < 200) {
+      return widget.fxReturnNames[key - 100] ?? 'FX ${key - 100}';
+    }
     return 'LINE';
   }
 
@@ -134,6 +138,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           configs: _configs,
           groupIndex: widget.groupIndex,
           channelNames: widget.channelNames,
+          fxReturnNames: widget.fxReturnNames,
         ),
       ),
     );

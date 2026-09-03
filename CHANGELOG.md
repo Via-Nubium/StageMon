@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- FX return names configured on the mixer are now shown on the FX faders and on their chips in Settings and group setup, the same way channel names already were.
+
 ### Fixed
 - Fixed channel and bus names, scribble-strip colors and fader positions sometimes coming up blank or stale when connecting to the mixer. StageMon now spaces those requests out to avoid overloading the mixer and asks again for anything that doesn't come back, so the mixer state loads completely even on the console's own wifi, or while another app is keeping the connection busy at the same time.
 

@@ -425,6 +425,7 @@ class _MixerScreenState extends State<MixerScreen> {
           busNum: _ctrl.effectiveBus,
           busPaired: _ctrl.busPaired,
           channelNames: _ctrl.channelNames,
+          fxReturnNames: _ctrl.fxReturnNames,
           channelColors: _layout.channelColors,
           lineInColor: _layout.lineInColor,
           fxReturnColors: _layout.fxReturnColors,
@@ -453,6 +454,7 @@ class _MixerScreenState extends State<MixerScreen> {
         builder: (_) => SettingsScreen(
           layout: _layout,
           channelNames: _ctrl.channelNames,
+          fxReturnNames: _ctrl.fxReturnNames,
           busNames: _ctrl.busNames,
           busLinked: _ctrl.busLinked,
           consoleChannelColors: _ctrl.consoleChannelColors,
@@ -1128,7 +1130,7 @@ class _MixerScreenState extends State<MixerScreen> {
                                         Expanded(
                                           child: CustomFader(
                                             key: ValueKey('fxrtn_$rtn'),
-                                            label: 'FX $rtn',
+                                            label: _ctrl.fxReturnLabel(rtn),
                                             oscAddress: _ctrl.fxReturnAddress(
                                               rtn,
                                             ),

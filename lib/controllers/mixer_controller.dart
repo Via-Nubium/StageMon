@@ -10,6 +10,7 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _loadChannelNames();
     _loadBusNames();
+    _loadFxReturnNames();
     _loadChannelColors();
     _loadLineInColor();
     _loadFxReturnColors();
@@ -42,6 +43,7 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
 
   final Map<int, String> channelNames = {};
   final Map<int, String> busNames = {};
+  final Map<int, String> fxReturnNames = {};
   // Colors the console itself reports for /config/color — separate from any
   // local override the user picked in Settings.
   final Map<int, int> consoleChannelColors = {};
@@ -76,6 +78,7 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
   // ── Private listener maps ─────────────────────────────────────────────────
   final Map<int, void Function(dynamic)> _nameListeners = {};
   final Map<int, void Function(dynamic)> _busNameListeners = {};
+  final Map<int, void Function(dynamic)> _fxReturnNameListeners = {};
   final Map<int, void Function(dynamic)> _colorListeners = {};
   final Map<int, void Function(dynamic)> _fxReturnColorListeners = {};
   void Function(dynamic)? _lineInColorListener;
@@ -128,6 +131,7 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
       service.request(fxReturnAddress(rtn));
       if (busPaired) service.request(fxReturnPanAddress(rtn));
       service.request(_fxReturnColorAddress(rtn));
+      service.request(_fxReturnNameAddress(rtn));
     }
     for (int busNum = 1; busNum <= 6; busNum++) {
       service.request(_buildBusNameAddress(busNum));
@@ -435,6 +439,21 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
+  void _loadFxReturnNames() {
+    for (int rtn = 1; rtn <= 4; rtn++) {
+      final address = _fxReturnNameAddress(rtn);
+      void listener(dynamic value) {
+        if (value is! String || _disposed) return;
+        final name = value.trim().replaceAll('\x00', '');
+        fxReturnNames[rtn] = name.isEmpty ? 'FX $rtn' : name;
+        notifyListeners();
+      }
+      _fxReturnNameListeners[rtn] = listener;
+      service.addListener(address, listener);
+      service.request(address);
+    }
+  }
+
   void _loadChannelColors() {
     for (int ch = 1; ch <= 16; ch++) {
       final address = _channelColorAddress(ch);
@@ -531,6 +550,7 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
   String _channelColorAddress(int channel) =>
       '/ch/${channel.toString().padLeft(2, '0')}/config/color';
   String _fxReturnColorAddress(int rtn) => '/rtn/$rtn/config/color';
+  String _fxReturnNameAddress(int rtn) => '/rtn/$rtn/config/name';
   static const String _lineInColorAddress = '/rtn/aux/config/color';
   String _busColorAddress(int busNum) => '/bus/$busNum/config/color';
 
@@ -545,6 +565,8 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
 
   String channelLabel(int ch) =>
       channelNames[ch] ?? 'Ch ${ch.toString().padLeft(2, '0')}';
+
+  String fxReturnLabel(int rtn) => fxReturnNames[rtn] ?? 'FX $rtn';
 
   String busLabel(int busNum) {
     final name = busNames[busNum];
@@ -563,6 +585,9 @@ class MixerController extends ChangeNotifier with WidgetsBindingObserver {
     }
     for (final entry in _busNameListeners.entries) {
       service.removeListener(_buildBusNameAddress(entry.key), entry.value);
+    }
+    for (final entry in _fxReturnNameListeners.entries) {
+      service.removeListener(_fxReturnNameAddress(entry.key), entry.value);
     }
     for (final entry in _busColorListeners.entries) {
       service.removeListener(_busColorAddress(entry.key), entry.value);

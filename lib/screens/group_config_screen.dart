@@ -6,12 +6,14 @@ class GroupConfigScreen extends StatefulWidget {
   final List<GroupFaderConfig> configs;
   final int groupIndex;
   final Map<int, String> channelNames;
+  final Map<int, String> fxReturnNames;
 
   const GroupConfigScreen({
     super.key,
     required this.configs,
     required this.groupIndex,
     required this.channelNames,
+    required this.fxReturnNames,
   });
 
   @override
@@ -32,7 +34,8 @@ class _GroupConfigScreenState extends State<GroupConfigScreen> {
   String _channelLabel(int ch) =>
       widget.channelNames[ch] ?? 'Ch ${ch.toString().padLeft(2, '0')}';
 
-  String _fxReturnLabel(int rtn) => 'FX $rtn';
+  String _fxReturnLabel(int rtn) =>
+      widget.fxReturnNames[rtn] ?? 'FX $rtn';
 
   Future<void> _renameGroup() async {
     final newName = await showDialog<String>(

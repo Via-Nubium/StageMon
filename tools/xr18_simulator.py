@@ -12,6 +12,8 @@ Interactive commands (type after the '> ' prompt):
     set <addr> <val>             Set any OSC address and push to connected app
     link <1|2|3> <0|1>          Toggle stereo bus pairing (1→1-2, 2→3-4, 3→5-6)
     name <ch> <name>             Set a channel name (ch = 1-16)
+    busname <bus 1-6> <name>     Set an AUX bus name
+    fxname <fx 1-4> <name>       Set an FX return name (use "" to clear)
     color ch <1-16> <0-15>       Set a channel's scribble-strip color
     color fx <1-4> <0-15>        Set an FX return's color
     color line <0-15>            Set Line In's color
@@ -186,8 +188,12 @@ class XR18Simulator:
                     self._state[f'/ch/{cs}/mix/{bs}/level'] = 0.0
                     self._state[f'/ch/{cs}/mix/{bs}/pan'] = 0.5
                     self._state[f'/ch/{cs}/mix/{bs}/grpon'] = 1  # 1 = send on (unmuted)
+            # FX 1-2 named, 3-4 blank — the app falls back to 'FX 3'/'FX 4'
+            # for those, so both paths show up side by side.
+            _sample_fx_names = ['Reverb', 'Delay', '', '']
             for rtn in range(1, 5):
                 self._state[f'/rtn/{rtn}/config/color'] = 2  # GN
+                self._state[f'/rtn/{rtn}/config/name'] = _sample_fx_names[rtn - 1]
                 for bus in range(1, 7):
                     bs = str(bus).zfill(2)
                     self._state[f'/rtn/{rtn}/mix/{bs}/level'] = 0.0
@@ -442,7 +448,7 @@ class XR18Simulator:
         print(f'XR18 Simulator — {ip}:{self._port}')
         print(f'Name: {self._device_name}  |  Model: {self._model}')
         print()
-        print('Commands: state [bus] | set <addr> <val> | link <1-3> <0/1> | name <ch> <name> | busname <bus 1-6> <name> | color [ch|fx|bus] <n> <0-15> | color line <0-15> | lr [fader x | mute x] | meters [on|off] | snap [load N | name N x] | silence [drop] <prefix> | clients | q')
+        print('Commands: state [bus] | set <addr> <val> | link <1-3> <0/1> | name <ch> <name> | busname <bus 1-6> <name> | fxname <fx 1-4> <name> | color [ch|fx|bus] <n> <0-15> | color line <0-15> | lr [fader x | mute x] | meters [on|off] | snap [load N | name N x] | silence [drop] <prefix> | clients | q')
         print()
 
         recv_thread = threading.Thread(target=self._recv_loop, daemon=True)
@@ -586,6 +592,25 @@ class XR18Simulator:
                     continue
                 name = parts[2].strip('"\'')
                 addr = f'/bus/{bus_n}/config/name'
+                with self._state_lock:
+                    self._state[addr] = name
+                self._push_to_xremote(addr, name)
+                print(f'  {addr} = {name!r}  (pushed)')
+
+            elif cmd == 'fxname':
+                if len(parts) < 3:
+                    print('  Usage: fxname <fx 1-4> <name>   (use "" to clear)')
+                    continue
+                try:
+                    rtn = int(parts[1])
+                except ValueError:
+                    print('  fx must be an integer 1-4')
+                    continue
+                if not 1 <= rtn <= 4:
+                    print('  fx must be 1-4')
+                    continue
+                name = parts[2].strip('"\'')
+                addr = f'/rtn/{rtn}/config/name'
                 with self._state_lock:
                     self._state[addr] = name
                 self._push_to_xremote(addr, name)
@@ -852,6 +877,7 @@ class XR18Simulator:
                 print('  link <1|2|3> <0|1>          Toggle stereo pairing for bus pair')
                 print('  name <ch> <name>             Set channel name (ch = 1-16)')
                 print('  busname <bus 1-6> <name>     Set AUX bus name and push to app')
+                print('  fxname <fx 1-4> <name>       Set FX return name and push ("" clears it)')
                 print('  color ch <1-16> <0-15>       Set a channel\'s scribble-strip color')
                 print('  color fx <1-4> <0-15>        Set an FX return\'s color')
                 print('  color line <0-15>            Set Line In\'s color')
