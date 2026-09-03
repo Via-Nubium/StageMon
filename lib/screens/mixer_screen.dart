@@ -1,8 +1,5 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show HitTestResult, RenderMetaData;
 import 'package:stagemon/l10n/app_localizations.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../services/osc_service.dart';
 import '../services/xr18_simulator.dart';
 import '../services/android_network_binder.dart';
@@ -15,6 +12,7 @@ import '../widgets/group_fader.dart';
 import '../widgets/snapshots_sheet.dart';
 import '../models/snapshot_manager.dart';
 import '../models/mixer_layout_state.dart';
+import '../controllers/fader_strip_controller.dart';
 import '../controllers/mixer_controller.dart';
 import '../utils/bus_title.dart';
 import 'settings_screen.dart';
@@ -36,315 +34,14 @@ class MixerScreen extends StatefulWidget {
   State<MixerScreen> createState() => _MixerScreenState();
 }
 
-enum _PointerRole { undecided, fader, strip, ignored }
-
-class _TrackedPointer {
-  _TrackedPointer(this.downPosition, this.controller, this.role)
-    : position = downPosition;
-  final Offset downPosition;
-  Offset position;
-  final FaderDragController? controller;
-  _PointerRole role;
-}
-
 class _MixerScreenState extends State<MixerScreen> {
   late final MixerController _ctrl;
   MixerLayoutState _layout = MixerLayoutState.defaults();
   final SnapshotManager _snapshots = SnapshotManager();
 
-  // ── Pinch-to-resize / scroll / fader-drag: unified pointer owner ────────
-  // See lib/widgets/custom_fader.dart's FaderDragController doc comment for
-  // why this isn't built out of nested GestureDetectors: a per-fader drag
-  // recognizer nested inside a screen-wide scale recognizer makes every
-  // two-finger touch a race between their independent slop thresholds,
-  // decided by Flutter's gesture arena rather than by anything this code
-  // controls. Instead, a single Listener (which never enters the arena)
-  // tracks raw pointers and this class decides explicitly, per pointer:
-  // is it dragging a fader (vertical intent, landed on one), or is it part
-  // of the strip's scroll/pinch (horizontal intent, or landed elsewhere)?
-  static const double _minFaderWidth = 60;
-  static const double _maxFaderWidth = 140;
-  // The bus column sits outside the pinch-resize, so it keeps a fixed
-  // width and is accounted for separately in the strip-extent math.
-  static const double _kBusColumnWidth = 90;
-  double _faderWidth = 90;
-  final ScrollController _faderScrollController = ScrollController();
-
-  // Marks PanKnob / MuteButton / the group config button inside the strip
-  // so a touch there is excluded from both fader-drag and strip handling —
-  // those widgets keep their own independent gesture handling untouched.
-  static const Object _kForeignGestureArea = Object();
-
-  // Movement needed to lock a pointer's role in (fader-drag vs. strip). This
-  // is the main "feel" knob: lower = faders react sooner, higher = fast
-  // horizontal swipes are less likely to get caught as a vertical drag.
-  static const double _kAxisLockSlop = 12.0;
-
-  final Map<Object, FaderDragController> _faderControllers = {};
-  final Map<int, _TrackedPointer> _pointers = {}; // insertion-ordered
-
-  double _stripRefWidth = 90;
-  double _stripRefDistance = 0;
-  Offset _stripLastFocal = Offset.zero;
-
-  // Strip content composition, refreshed on every build, so a pinch can
-  // work out what the scroll extent *will be* at the width it's about to
-  // apply. Clamping against ScrollPosition.maxScrollExtent instead would
-  // use the extent of the width still on screen: pinching open near the
-  // right-hand end pushes the anchored offset past that stale limit and
-  // it gets silently truncated, which reads as the strip sliding out from
-  // under the fingers — worse the faster the fingers move, since each
-  // frame loses a little more.
-  int _stripScalableColumns = 0;
-  double _stripFixedWidth = 0;
-
-  // Fling on release. Velocity is measured on how far the strip has *panned*
-  // (the focal point's travel), not on the scroll offset: a pinch-resize moves
-  // the offset a lot while the content under the fingers stays put, and
-  // flinging off that would launch the strip after a gesture that never
-  // panned. Accumulating the per-frame pan also keeps the measurement
-  // continuous across finger-count changes, which the focal point itself is
-  // not — it jumps whenever the strip pair is re-based.
-  VelocityTracker? _stripPanVelocity;
-  double _stripPanTravel = 0;
-  bool _stripOverscrolled = false;
-
-  List<_TrackedPointer> get _stripPointers => _pointers.values
-      .where((p) => p.role == _PointerRole.strip)
-      .take(2)
-      .toList();
-
-  Object? _stripTargetAt(PointerEvent e) {
-    final result = HitTestResult();
-    WidgetsBinding.instance.hitTestInView(result, e.position, e.viewId);
-    for (final entry in result.path) {
-      final target = entry.target;
-      if (target is! RenderMetaData) continue;
-      final meta = target.metaData;
-      if (meta is FaderDragController || identical(meta, _kForeignGestureArea)) {
-        return meta;
-      }
-    }
-    return null;
-  }
-
-  void _onPointerDown(PointerDownEvent e) {
-    _stopStripFling();
-    final hit = _stripTargetAt(e);
-    final p = _TrackedPointer(
-      e.localPosition,
-      hit is FaderDragController ? hit : null,
-      identical(hit, _kForeignGestureArea)
-          ? _PointerRole.ignored
-          : _PointerRole.undecided,
-    );
-    _pointers[e.pointer] = p;
-    // If the strip is already being manipulated, this finger joins it
-    // rather than starting anything of its own — the re-baseline this
-    // triggers is what keeps a finger that was sitting still on a fader
-    // from causing a jump once a second finger commits to the strip.
-    if (p.role == _PointerRole.undecided && _stripPointers.isNotEmpty) {
-      _promoteToStrip(p);
-    }
-  }
-
-  void _onPointerMove(PointerMoveEvent e) {
-    final p = _pointers[e.pointer];
-    if (p == null) return;
-    p.position = e.localPosition;
-    switch (p.role) {
-      case _PointerRole.ignored:
-        break;
-      case _PointerRole.undecided:
-        _resolveRole(p);
-      case _PointerRole.fader:
-        p.controller!.updateDrag(e.localPosition.dy);
-      case _PointerRole.strip:
-        if (_stripPointers.contains(p)) _updateStrip(e.timeStamp);
-    }
-  }
-
-  void _onPointerUpOrCancel(PointerEvent e) {
-    final p = _pointers.remove(e.pointer);
-    if (p == null) return;
-    if (p.role == _PointerRole.fader) {
-      p.controller!.endDrag();
-    } else if (p.role == _PointerRole.strip) {
-      SharedPreferences.getInstance().then(
-        (prefs) => prefs.setDouble('fader_width', _faderWidth),
-      );
-      if (_stripPointers.isEmpty) {
-        _flingStrip();
-      } else {
-        _rebaseStrip(); // remaining strip finger(s) continue without a jump
-      }
-    }
-  }
-
-  void _resolveRole(_TrackedPointer p) {
-    final d = p.position - p.downPosition;
-    if (d.dx.abs() < _kAxisLockSlop && d.dy.abs() < _kAxisLockSlop) return;
-    if (d.dy.abs() > d.dx.abs() &&
-        p.controller != null &&
-        !p.controller!.isDragging) {
-      p.role = _PointerRole.fader;
-      p.controller!.startDrag(p.position.dy); // baseline at the lock: no jump
-    } else {
-      _promoteToStrip(p);
-    }
-  }
-
-  // The strip and individual fader drags don't run at the same time: a
-  // pointer that commits to the strip cancels any fader drag in progress
-  // and pulls in any pointer that hadn't committed to anything yet —
-  // including one that's been sitting still since before this one landed.
-  // Re-baselining right here, from current positions, is what removes the
-  // jump that used to happen when Flutter's arena did this same handoff on
-  // its own timing.
-  void _promoteToStrip(_TrackedPointer p) {
-    p.role = _PointerRole.strip;
-    for (final other in _pointers.values) {
-      if (other.role == _PointerRole.fader) {
-        other.controller!.endDrag();
-        other.role = _PointerRole.strip;
-      } else if (other.role == _PointerRole.undecided) {
-        other.role = _PointerRole.strip;
-      }
-    }
-    _rebaseStrip();
-  }
-
-  // Scroll extent the strip will settle at once [faderWidth] is laid out.
-  double _maxStripOffsetFor(double faderWidth, ScrollPosition pos) {
-    final content = _stripScalableColumns * faderWidth + _stripFixedWidth;
-    return (content - pos.viewportDimension).clamp(0.0, double.infinity);
-  }
-
-  void _rebaseStrip() {
-    final s = _stripPointers;
-    if (s.isEmpty) return;
-    _stripRefWidth = _faderWidth;
-    _stripRefDistance = s.length == 2
-        ? (s[0].position - s[1].position).distance.clamp(1.0, double.infinity)
-        : 0;
-    _stripLastFocal = s.length == 2
-        ? Offset.lerp(s[0].position, s[1].position, 0.5)!
-        : s[0].position;
-  }
-
-  void _updateStrip(Duration timeStamp) {
-    final s = _stripPointers;
-    if (s.isEmpty) return;
-    final focal = s.length == 2
-        ? Offset.lerp(s[0].position, s[1].position, 0.5)!
-        : s[0].position;
-    final panDelta = focal.dx - _stripLastFocal.dx;
-    final previousWidth = _faderWidth;
-    double newWidth = previousWidth;
-    if (s.length == 2 && _stripRefDistance > 0) {
-      final distance = (s[0].position - s[1].position).distance.clamp(
-        1.0,
-        double.infinity,
-      );
-      newWidth = (_stripRefWidth * distance / _stripRefDistance).clamp(
-        _minFaderWidth,
-        _maxFaderWidth,
-      );
-    }
-    if (_faderScrollController.hasClients) {
-      double offset = _faderScrollController.offset;
-      if (newWidth != previousWidth) {
-        final ratio = newWidth / previousWidth;
-        offset = ratio * offset + (ratio - 1) * focal.dx;
-      }
-      offset -= panDelta;
-      final pos = _faderScrollController.position;
-      final clamped = offset.clamp(
-        pos.minScrollExtent,
-        _maxStripOffsetFor(newWidth, pos),
-      );
-      _faderScrollController.jumpTo(clamped);
-      if (offset != clamped) _reportStripOverscroll(pos, offset - clamped, focal);
-    }
-    if (_stripPanVelocity == null) {
-      _stripPanVelocity = VelocityTracker.withKind(PointerDeviceKind.touch);
-      _stripPanTravel = 0;
-    }
-    _stripPanTravel += panDelta;
-    _stripPanVelocity!.addPosition(timeStamp, Offset(_stripPanTravel, 0));
-    _stripLastFocal = focal;
-    if (newWidth != _faderWidth) setState(() => _faderWidth = newWidth);
-  }
-
-  // The strip is scrolled by hand with jumpTo, which hard-clamps at the ends,
-  // so Flutter never finds out that the user kept pushing past them. Reporting
-  // that leftover travel ourselves is what lets the platform's own overscroll
-  // indicator (the stretch effect on Android) respond to a drag, the same way
-  // it already responds when a fling runs into the end.
-  void _reportStripOverscroll(
-    ScrollPosition position,
-    double overscroll,
-    Offset focal,
-  ) {
-    final notificationContext = position.context.notificationContext;
-    if (notificationContext == null) return;
-    _stripOverscrolled = true;
-    OverscrollNotification(
-      metrics: position.copyWith(),
-      context: notificationContext,
-      overscroll: overscroll,
-      // A non-null dragDetails is what marks this as a pull to follow; with a
-      // non-zero velocity instead, the indicator reads it as a fling's impact.
-      dragDetails: DragUpdateDetails(
-        globalPosition: focal,
-        delta: Offset(-overscroll, 0),
-        primaryDelta: -overscroll,
-      ),
-    ).dispatch(notificationContext);
-  }
-
-  // Lets the stretch recoil once the fingers are gone.
-  void _endStripOverscroll() {
-    if (!_stripOverscrolled) return;
-    _stripOverscrolled = false;
-    if (!_faderScrollController.hasClients) return;
-    final position = _faderScrollController.position;
-    final notificationContext = position.context.notificationContext;
-    if (notificationContext == null) return;
-    ScrollEndNotification(
-      metrics: position.copyWith(),
-      context: notificationContext,
-    ).dispatch(notificationContext);
-  }
-
-  // Hands the wind-down to the platform's own scroll physics, so releasing the
-  // strip decelerates exactly like every other scrollable in the app.
-  // NeverScrollableScrollPhysics only refuses *user* drags; it delegates
-  // createBallisticSimulation to its parent, which is the platform default.
-  void _flingStrip() {
-    _endStripOverscroll();
-    final tracker = _stripPanVelocity;
-    _stripPanVelocity = null;
-    if (tracker == null || !_faderScrollController.hasClients) return;
-    final position = _faderScrollController.position;
-    if (position is! ScrollPositionWithSingleContext) return;
-    // Scroll offset runs opposite to the content travelling under the finger.
-    final velocity = -tracker.getVelocity().pixelsPerSecond.dx;
-    if (velocity.abs() < kMinFlingVelocity) {
-      position.goIdle();
-      return;
-    }
-    position.goBallistic(
-      velocity.clamp(-kMaxFlingVelocity, kMaxFlingVelocity),
-    );
-  }
-
-  // A touch stops a fling in progress, the same as any scrollable.
-  void _stopStripFling() {
-    if (!_faderScrollController.hasClients) return;
-    final position = _faderScrollController.position;
-    if (position is ScrollPositionWithSingleContext) position.goIdle();
-  }
+  // Owns the strip's horizontal scroll, its pinch-to-resize width and the
+  // routing of every touch that lands on it.
+  final FaderStripController _strip = FaderStripController();
 
   @override
   void initState() {
@@ -354,10 +51,12 @@ class _MixerScreenState extends State<MixerScreen> {
       simulator: widget.simulator,
     );
     ScreenAwakeService.start();
+    _strip.addListener(_onStripChanged);
+    _strip.loadSavedWidth();
     _snapshots.load().then((_) {
       if (mounted) setState(() {});
     });
-    _loadPreferences();
+    _loadLayout();
     LayoutImportService.listen(_checkPendingLayoutImport);
     _checkPendingLayoutImport();
   }
@@ -383,16 +82,7 @@ class _MixerScreenState extends State<MixerScreen> {
     _openSettings(pendingImportContent: content);
   }
 
-  void _loadPreferences() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
-    final savedFaderWidth = prefs.getDouble('fader_width');
-    if (savedFaderWidth != null) {
-      setState(
-        () =>
-            _faderWidth = savedFaderWidth.clamp(_minFaderWidth, _maxFaderWidth),
-      );
-    }
+  void _loadLayout() async {
     final loaded = await MixerLayoutState.loadFromPrefs(fallbackBus: _ctrl.bus);
     if (!mounted) return;
     setState(() => _layout = loaded);
@@ -404,14 +94,12 @@ class _MixerScreenState extends State<MixerScreen> {
     ScreenAwakeService.stop();
     _ctrl.dispose();
     widget.simulator?.stop();
-    _faderScrollController.dispose();
+    _strip.dispose();
     super.dispose();
   }
 
-  // Drops controllers for columns that no longer exist (deselected channel,
-  // hidden group, etc.) so they don't accumulate forever across rebuilds.
-  void _pruneFaderControllers(Iterable<Object> liveIds) {
-    _faderControllers.removeWhere((id, _) => !liveIds.contains(id));
+  void _onStripChanged() {
+    if (mounted) setState(() {});
   }
 
   // ── Navigation / dialogs ──────────────────────────────────────────────────
@@ -618,7 +306,7 @@ class _MixerScreenState extends State<MixerScreen> {
             .toList();
         final busPinned = _layout.busFaderVisible && _layout.busFaderPinned;
         final busInline = _layout.busFaderVisible && !busPinned;
-        _pruneFaderControllers([
+        _strip.pruneControllers([
           ...channels,
           if (_layout.lineInVisible) 'line_in',
           ...visibleFxReturns.map((r) => 'fxrtn_$r'),
@@ -628,18 +316,20 @@ class _MixerScreenState extends State<MixerScreen> {
         // Derived from the same lists that build the Row below, so the pinch
         // handler's extent math can't drift out of step with what is actually
         // on screen.
-        _stripScalableColumns =
-            channels.length +
-            (_layout.lineInVisible ? 1 : 0) +
-            visibleFxReturns.length +
-            visibleGroups.length;
-        _stripFixedWidth =
-            (busInline ? _kBusColumnWidth : 0) +
-            MediaQuery.viewPaddingOf(context).left +
-            (busPinned ? 0 : MediaQuery.viewPaddingOf(context).right);
+        _strip.setContentMetrics(
+          scalableColumns:
+              channels.length +
+              (_layout.lineInVisible ? 1 : 0) +
+              visibleFxReturns.length +
+              visibleGroups.length,
+          fixedWidth:
+              (busInline ? kBusColumnWidth : 0) +
+              MediaQuery.viewPaddingOf(context).left +
+              (busPinned ? 0 : MediaQuery.viewPaddingOf(context).right),
+        );
         final busFader = Container(
           key: const ValueKey('bus_container'),
-          width: _kBusColumnWidth,
+          width: kBusColumnWidth,
           color: const Color.fromARGB(255, 14, 23, 43),
           child: Column(
             children: [
@@ -657,16 +347,11 @@ class _MixerScreenState extends State<MixerScreen> {
                   meterLevelRight: _ctrl.busPaired
                       ? _ctrl.busMeterLevelRight
                       : null,
-                  controller: busPinned
-                      ? null
-                      : _faderControllers.putIfAbsent(
-                          'bus',
-                          FaderDragController.new,
-                        ),
+                  controller: busPinned ? null : _strip.controllerFor('bus'),
                 ),
               ),
               MetaData(
-                metaData: _kForeignGestureArea,
+                metaData: kForeignGestureArea,
                 behavior: HitTestBehavior.opaque,
                 child: MuteButton(
                   key: const ValueKey('mute_bus'),
@@ -788,12 +473,12 @@ class _MixerScreenState extends State<MixerScreen> {
                       Expanded(
                         child: Listener(
                           behavior: HitTestBehavior.opaque,
-                          onPointerDown: _onPointerDown,
-                          onPointerMove: _onPointerMove,
-                          onPointerUp: _onPointerUpOrCancel,
-                          onPointerCancel: _onPointerUpOrCancel,
+                          onPointerDown: _strip.onPointerDown,
+                          onPointerMove: _strip.onPointerMove,
+                          onPointerUp: _strip.onPointerUpOrCancel,
+                          onPointerCancel: _strip.onPointerUpOrCancel,
                           child: SingleChildScrollView(
-                            controller: _faderScrollController,
+                            controller: _strip.scrollController,
                             physics: const NeverScrollableScrollPhysics(),
                             scrollDirection: Axis.horizontal,
                             padding: EdgeInsets.only(
@@ -808,12 +493,12 @@ class _MixerScreenState extends State<MixerScreen> {
                                 ...channels.map(
                                   (ch) => SizedBox(
                                     key: ValueKey(ch),
-                                    width: _faderWidth,
+                                    width: _strip.faderWidth,
                                     child: Column(
                                       children: [
                                         if (_ctrl.busPaired)
                                           MetaData(
-                                            metaData: _kForeignGestureArea,
+                                            metaData: kForeignGestureArea,
                                             behavior: HitTestBehavior.opaque,
                                             child: PanKnob(
                                               key: ValueKey('pan_$ch'),
@@ -838,11 +523,9 @@ class _MixerScreenState extends State<MixerScreen> {
                                                 _ctrl
                                                     .consoleChannelColors[ch] ??
                                                 0,
-                                            controller: _faderControllers
-                                                .putIfAbsent(
-                                                  ch,
-                                                  FaderDragController.new,
-                                                ),
+                                            controller: _strip.controllerFor(
+                                              ch,
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -852,12 +535,12 @@ class _MixerScreenState extends State<MixerScreen> {
                                 if (_layout.lineInVisible) ...[
                                   SizedBox(
                                     key: const ValueKey('line_in'),
-                                    width: _faderWidth,
+                                    width: _strip.faderWidth,
                                     child: Column(
                                       children: [
                                         if (_ctrl.busPaired)
                                           MetaData(
-                                            metaData: _kForeignGestureArea,
+                                            metaData: kForeignGestureArea,
                                             behavior: HitTestBehavior.opaque,
                                             child: PanKnob(
                                               key: const ValueKey(
@@ -884,11 +567,9 @@ class _MixerScreenState extends State<MixerScreen> {
                                                 _layout.lineInColor ??
                                                 _ctrl.consoleLineInColor ??
                                                 0,
-                                            controller: _faderControllers
-                                                .putIfAbsent(
-                                                  'line_in',
-                                                  FaderDragController.new,
-                                                ),
+                                            controller: _strip.controllerFor(
+                                              'line_in',
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -898,12 +579,12 @@ class _MixerScreenState extends State<MixerScreen> {
                                 ...visibleFxReturns.map(
                                   (rtn) => SizedBox(
                                     key: ValueKey('fxrtn_$rtn'),
-                                    width: _faderWidth,
+                                    width: _strip.faderWidth,
                                     child: Column(
                                       children: [
                                         if (_ctrl.busPaired)
                                           MetaData(
-                                            metaData: _kForeignGestureArea,
+                                            metaData: kForeignGestureArea,
                                             behavior: HitTestBehavior.opaque,
                                             child: PanKnob(
                                               key: ValueKey('fxrtn_pan_$rtn'),
@@ -934,11 +615,9 @@ class _MixerScreenState extends State<MixerScreen> {
                                                 _ctrl
                                                     .consoleFxReturnColors[rtn] ??
                                                 0,
-                                            controller: _faderControllers
-                                                .putIfAbsent(
-                                                  'fxrtn_$rtn',
-                                                  FaderDragController.new,
-                                                ),
+                                            controller: _strip.controllerFor(
+                                              'fxrtn_$rtn',
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -948,14 +627,14 @@ class _MixerScreenState extends State<MixerScreen> {
                                 ...visibleGroups.map(
                                   (e) => Container(
                                     key: ValueKey('group_${e.key}'),
-                                    width: _faderWidth,
+                                    width: _strip.faderWidth,
                                     color: const Color(
                                       0xFF00C853,
                                     ).withValues(alpha: 0.04),
                                     child: Column(
                                       children: [
                                         MetaData(
-                                          metaData: _kForeignGestureArea,
+                                          metaData: kForeignGestureArea,
                                           behavior: HitTestBehavior.opaque,
                                           child: SizedBox(
                                             height: kPanKnobHeight,
@@ -991,11 +670,9 @@ class _MixerScreenState extends State<MixerScreen> {
                                             busNum: _ctrl.effectiveBus,
                                             service: widget.service,
                                             nameColorIndex: e.value.colorIndex,
-                                            controller: _faderControllers
-                                                .putIfAbsent(
-                                                  'group_${e.key}',
-                                                  FaderDragController.new,
-                                                ),
+                                            controller: _strip.controllerFor(
+                                              'group_${e.key}',
+                                            ),
                                           ),
                                         ),
                                       ],
