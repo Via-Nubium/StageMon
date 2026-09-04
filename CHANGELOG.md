@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 - FX return names configured on the mixer are now shown on the FX faders and on their chips in Settings and group setup, the same way channel names already were.
+- Pinch with two fingers over a group's faders to resize them, the same as on the mixer screen. Each screen remembers its own size, so a group of three faders can be spread across the whole screen while the mixer stays packed with sixteen.
 
 ### Fixed
 - Fixed channel and bus names, scribble-strip colors and fader positions sometimes coming up blank or stale when connecting to the mixer. StageMon now spaces those requests out to avoid overloading the mixer and asks again for anything that doesn't come back, so the mixer state loads completely even on the console's own wifi, or while another app is keeping the connection busy at the same time.
@@ -16,6 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Mixer search now keeps looking for 6 seconds, sending three requests along the way instead of one, so a busy mixer that misses the first one still shows up without having to press Search again. Mixers appear as soon as they answer, and the simulator card is always available while the search runs.
 - Every change StageMon sends to the mixer — fader, pan, mute — is now confirmed by the mixer before StageMon considers it done. If no confirmation arrives, the value is read back, so what's on screen always reflects what the mixer actually has.
 - Recalling a snapshot now moves the faders over about half a second instead of all at once, so every change reaches the mixer reliably.
+- A group's fader screen now scrolls, flings and drags exactly like the mixer screen, and follows the mixer live: names, colors and stereo pairing that change while it is open now show up without leaving the screen.
 
 ## [1.1.0] - 2026-08-28
 

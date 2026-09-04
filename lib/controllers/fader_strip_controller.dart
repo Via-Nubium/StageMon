@@ -64,7 +64,12 @@ class _TrackedPointer {
 /// fader (vertical intent, landed on one), or is it part of the strip's
 /// scroll/pinch (horizontal intent, or landed elsewhere)?
 class FaderStripController extends ChangeNotifier {
-  static const _prefsKey = 'fader_width';
+  /// Where this strip's pinched width is remembered. Each strip gets its
+  /// own: how wide you want the mixer's faders and how wide you want a
+  /// group's three of them are different answers.
+  final String widthPrefsKey;
+
+  FaderStripController({required this.widthPrefsKey});
 
   final ScrollController scrollController = ScrollController();
 
@@ -129,7 +134,7 @@ class FaderStripController extends ChangeNotifier {
   /// Restores the width the user last pinched to.
   Future<void> loadSavedWidth() async {
     final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getDouble(_prefsKey);
+    final saved = prefs.getDouble(widthPrefsKey);
     if (saved == null || _disposed) return;
     _faderWidth = saved.clamp(_minFaderWidth, _maxFaderWidth);
     notifyListeners();
@@ -200,7 +205,7 @@ class FaderStripController extends ChangeNotifier {
       p.controller!.endDrag();
     } else if (p.role == _PointerRole.strip) {
       SharedPreferences.getInstance().then(
-        (prefs) => prefs.setDouble(_prefsKey, _faderWidth),
+        (prefs) => prefs.setDouble(widthPrefsKey, _faderWidth),
       );
       if (_stripPointers.isEmpty) {
         _flingStrip();

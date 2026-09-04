@@ -45,7 +45,9 @@ class _MixerScreenState extends State<MixerScreen> {
 
   // Owns the strip's horizontal scroll, its pinch-to-resize width and the
   // routing of every touch that lands on it.
-  final FaderStripController _strip = FaderStripController();
+  final FaderStripController _strip = FaderStripController(
+    widthPrefsKey: 'fader_width',
+  );
 
   @override
   void initState() {
@@ -113,24 +115,9 @@ class _MixerScreenState extends State<MixerScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => GroupDetailScreen(
-          configs: _layout.groups,
           groupIndex: groupIndex,
-          busNum: _ctrl.effectiveBus,
-          busPaired: _ctrl.busPaired,
-          channelNames: _ctrl.channelNames,
-          fxReturnNames: _ctrl.fxReturnNames,
-          channelColors: _layout.channelColors,
-          lineInColor: _layout.lineInColor,
-          fxReturnColors: _layout.fxReturnColors,
-          consoleChannelColors: _ctrl.consoleChannelColors,
-          consoleLineInColor: _ctrl.consoleLineInColor,
-          consoleFxReturnColors: _ctrl.consoleFxReturnColors,
-          service: widget.service,
-          meterLevels: _ctrl.meterLevels,
-          fxReturnMeterL: _ctrl.fxReturnMeterL,
-          fxReturnMeterR: _ctrl.fxReturnMeterR,
-          lineInMeterL: _ctrl.lineInMeterL,
-          lineInMeterR: _ctrl.lineInMeterR,
+          ctrl: _ctrl,
+          layout: _layout,
           onConfigsChanged: (newConfigs) {
             setState(() => _layout = _layout.copyWith(groups: newConfigs));
             _layout.saveToPrefs();

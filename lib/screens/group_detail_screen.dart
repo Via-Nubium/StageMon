@@ -1,53 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:stagemon/l10n/app_localizations.dart';
-import '../services/osc_service.dart';
+import '../controllers/fader_strip_controller.dart';
+import '../controllers/mixer_controller.dart';
 import '../models/group_fader_config.dart';
-import '../widgets/custom_fader.dart';
+import '../models/mixer_layout_state.dart';
 import '../utils/group_members.dart';
-import '../widgets/pan_knob.dart';
+import '../widgets/fader_strip.dart';
+import '../widgets/member_column.dart';
 import 'group_config_screen.dart';
 
+/// The members of one group, each on its own fader — the same strip the mixer
+/// screen shows, holding only what this group contains and no MASTER.
+///
+/// Its faders read live from [ctrl], so a name or color the console reports
+/// while this screen is open lands here too. [layout] is only the user's own
+/// color overrides, and is the snapshot taken when this screen was opened.
 class GroupDetailScreen extends StatefulWidget {
-  final List<GroupFaderConfig> configs;
   final int groupIndex;
-  final int busNum;
-  final bool busPaired;
-  final Map<int, String> channelNames;
-  final Map<int, String> fxReturnNames;
-  final Map<int, int?> channelColors;
-  final int? lineInColor;
-  final Map<int, int?> fxReturnColors;
-  final Map<int, int> consoleChannelColors;
-  final int? consoleLineInColor;
-  final Map<int, int> consoleFxReturnColors;
-  final OscService service;
-  final List<ValueNotifier<double>> meterLevels;        // 16 channel meters
-  final List<ValueNotifier<double>> fxReturnMeterL;     // 4 FX return left meters
-  final List<ValueNotifier<double>> fxReturnMeterR;     // 4 FX return right meters
-  final ValueNotifier<double> lineInMeterL;
-  final ValueNotifier<double> lineInMeterR;
+  final MixerController ctrl;
+  final MixerLayoutState layout;
   final void Function(List<GroupFaderConfig>) onConfigsChanged;
 
   const GroupDetailScreen({
     super.key,
-    required this.configs,
     required this.groupIndex,
-    required this.busNum,
-    required this.busPaired,
-    required this.channelNames,
-    required this.fxReturnNames,
-    required this.channelColors,
-    required this.lineInColor,
-    required this.fxReturnColors,
-    required this.consoleChannelColors,
-    required this.consoleLineInColor,
-    required this.consoleFxReturnColors,
-    required this.service,
-    required this.meterLevels,
-    required this.fxReturnMeterL,
-    required this.fxReturnMeterR,
-    required this.lineInMeterL,
-    required this.lineInMeterR,
+    required this.ctrl,
+    required this.layout,
     required this.onConfigsChanged,
   });
 
@@ -58,60 +36,30 @@ class GroupDetailScreen extends StatefulWidget {
 class _GroupDetailScreenState extends State<GroupDetailScreen> {
   late List<GroupFaderConfig> _configs;
 
+  // Its own strip, and its own remembered width: a group of three faders is
+  // usually wanted spread across the screen even when the mixer is packed.
+  final FaderStripController _strip = FaderStripController(
+    widthPrefsKey: 'group_fader_width',
+  );
+
   GroupFaderConfig get _config => _configs[widget.groupIndex];
 
   @override
   void initState() {
     super.initState();
-    _configs = widget.configs;
+    _configs = widget.layout.groups;
+    _strip.addListener(_onStripChanged);
+    _strip.loadSavedWidth();
   }
 
-  List<int> get _allMembers => groupMembers(
-    channels: _config.channels,
-    fxReturns: _config.fxReturns,
-    lineIn: _config.lineIn,
-  );
-
-  String _memberLabel(int key) {
-    if (isChannelMember(key)) {
-      return widget.channelNames[key] ?? 'Ch ${key.toString().padLeft(2, '0')}';
-    }
-    if (isFxReturnMember(key)) {
-      final rtn = fxReturnOf(key);
-      return widget.fxReturnNames[rtn] ?? 'FX $rtn';
-    }
-    return 'LINE';
+  @override
+  void dispose() {
+    _strip.dispose();
+    super.dispose();
   }
 
-  Color? _memberColor(int key) => isFxReturnMember(key) ? Colors.teal : null;
-
-  int _memberNameColorIndex(int key) {
-    if (isChannelMember(key)) {
-      return widget.channelColors[key] ?? widget.consoleChannelColors[key] ?? 0;
-    }
-    if (isFxReturnMember(key)) {
-      final rtn = fxReturnOf(key);
-      return widget.fxReturnColors[rtn] ??
-          widget.consoleFxReturnColors[rtn] ??
-          0;
-    }
-    return widget.lineInColor ?? widget.consoleLineInColor ?? 0;
-  }
-
-  ValueNotifier<double> _memberMeterL(int key) {
-    if (isChannelMember(key)) return widget.meterLevels[key - 1];
-    if (isFxReturnMember(key)) {
-      return widget.fxReturnMeterL[fxReturnOf(key) - 1];
-    }
-    return widget.lineInMeterL;
-  }
-
-  ValueNotifier<double>? _memberMeterR(int key) {
-    if (isChannelMember(key)) return null;
-    if (isFxReturnMember(key)) {
-      return widget.fxReturnMeterR[fxReturnOf(key) - 1];
-    }
-    return widget.lineInMeterR;
+  void _onStripChanged() {
+    if (mounted) setState(() {});
   }
 
   void _openConfig() async {
@@ -121,8 +69,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         builder: (_) => GroupConfigScreen(
           configs: _configs,
           groupIndex: widget.groupIndex,
-          channelNames: widget.channelNames,
-          fxReturnNames: widget.fxReturnNames,
+          channelNames: widget.ctrl.channelNames,
+          fxReturnNames: widget.ctrl.fxReturnNames,
         ),
       ),
     );
@@ -135,70 +83,54 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final members = _allMembers;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(l.groupTitle(_config.name)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            tooltip: l.editGroupChannels,
-            onPressed: _openConfig,
+    return ListenableBuilder(
+      listenable: widget.ctrl,
+      builder: (context, _) {
+        final members = groupMembers(
+          channels: _config.channels,
+          fxReturns: _config.fxReturns,
+          lineIn: _config.lineIn,
+        );
+        _strip.pruneControllers(members);
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(l.groupTitle(_config.name)),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.edit),
+                tooltip: l.editGroupChannels,
+                onPressed: _openConfig,
+              ),
+            ],
           ),
-        ],
-      ),
-      body: members.isEmpty
-          ? Center(child: Text(l.noChannelsInGroup))
-          : Column(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    padding: EdgeInsets.only(
-                      left: MediaQuery.viewPaddingOf(context).left,
-                      right: MediaQuery.viewPaddingOf(context).right,
+          body: members.isEmpty
+              ? Center(child: Text(l.noChannelsInGroup))
+              : Column(
+                  children: [
+                    Expanded(
+                      child: FaderStrip(
+                        controller: _strip,
+                        padding: EdgeInsets.only(
+                          left: MediaQuery.viewPaddingOf(context).left,
+                          right: MediaQuery.viewPaddingOf(context).right,
+                        ),
+                        columns: [
+                          for (final member in members)
+                            MemberColumn(
+                              key: ValueKey(member),
+                              member: member,
+                              ctrl: widget.ctrl,
+                              layout: widget.layout,
+                              strip: _strip,
+                            ),
+                        ],
+                      ),
                     ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: members.map((key) {
-                        return SizedBox(
-                          width: 90,
-                          child: _buildMemberColumn(key, _memberColor(key)),
-                        );
-                      }).toList(),
-                    ),
-                  ),
+                    SizedBox(height: MediaQuery.viewPaddingOf(context).bottom),
+                  ],
                 ),
-                SizedBox(height: MediaQuery.viewPaddingOf(context).bottom),
-              ],
-            ),
-    );
-  }
-
-  Widget _buildMemberColumn(int key, Color? accentColor) {
-    return Column(
-      children: [
-        if (widget.busPaired)
-          PanKnob(
-            key: ValueKey('pan_$key'),
-            oscAddress: memberPanAddress(key, widget.busNum),
-            service: widget.service,
-          )
-        else
-          const SizedBox(height: kPanKnobHeight),
-        Expanded(
-          child: CustomFader(
-            key: ValueKey(key),
-            label: _memberLabel(key),
-            oscAddress: memberLevelAddress(key, widget.busNum),
-            service: widget.service,
-            accentColor: accentColor ?? const Color(0xFF2979FF),
-            nameColorIndex: _memberNameColorIndex(key),
-            meterLevel: _memberMeterL(key),
-            meterLevelRight: _memberMeterR(key),
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 }
