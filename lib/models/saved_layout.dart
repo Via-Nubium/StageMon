@@ -18,25 +18,40 @@ class SavedLayout {
   // null means this layout doesn't carry a bus — loading it leaves whatever
   // bus is currently selected untouched, since a layout's channel/group
   // arrangement is commonly reused across different monitor mixes (buses).
-  // Deliberately separate from `layout.bus` (which MixerLayoutState always
-  // gives a concrete value): this is the one place bus-nullability exists
-  // in the whole app. layout.bus itself is never read directly here — see
-  // toJson/fromJson.
+  // This is the one place bus-nullability exists in the whole app.
   final int? bus;
-  final MixerLayoutState layout;
+
+  // Private on purpose. The bus inside it is *not* resolved — when [bus] is
+  // null this holds a throwaway value nobody chose — so the only way out is
+  // [resolvedLayout], which can't be called without saying what to fall back
+  // to. Reading a bus that was never picked is then not something a caller
+  // can do by accident.
+  final MixerLayoutState _layout;
 
   SavedLayout({
     required this.name,
     required this.console,
     required this.bus,
-    required this.layout,
-  });
+    required MixerLayoutState layout,
+  }) : _layout = layout;
+
+  /// This layout ready to apply: the bus it carries, or [currentBus] when it
+  /// carries none.
+  MixerLayoutState resolvedLayout(int currentBus) =>
+      _layout.copyWith(bus: bus ?? currentBus);
+
+  // What the layout holds, for the one-line summary in the layouts list —
+  // so listing a layout doesn't mean reaching through it to the state.
+  int get channelCount => _layout.channels.length;
+  bool get hasLineIn => _layout.lineInVisible;
+  int get fxReturnCount => _layout.fxReturns.length;
+  int get visibleGroupCount => _layout.groups.where((g) => g.visible).length;
 
   Map<String, dynamic> toJson() => {
     'formatVersion': formatVersion,
     'name': name,
     'console': console,
-    'layout': {...layout.toJson(), 'bus': bus},
+    'layout': {..._layout.toJson(), 'bus': bus},
   };
 
   /// Throws [FormatException] if [json] isn't a StageMon layout.
@@ -76,10 +91,9 @@ class SavedLayout {
       name: name,
       console: json['console'] as String? ?? 'Unknown',
       bus: rawBus is int ? rawBus : null,
-      // fallbackBus is a throwaway placeholder: when bus is null nothing
-      // ever reads layout.bus — callers use SavedLayout.bus for "should
-      // this move the selected bus" and layout.copyWith(bus: ...) to apply
-      // it once they know what to fall back to.
+      // A placeholder, and an unreachable one: parsing a file can't know
+      // which bus is selected, and resolvedLayout overwrites this before
+      // anyone can see it.
       layout: MixerLayoutState.fromJson(layoutJson, fallbackBus: 1),
     );
   }

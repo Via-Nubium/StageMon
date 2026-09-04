@@ -34,8 +34,9 @@ void main() {
     await reopened.load();
     expect(reopened.layouts.length, 1);
     expect(reopened.layouts.single.name, 'Guitarra');
-    expect(reopened.layouts.single.layout.channels, {1, 2, 3, 9});
-    expect(reopened.layouts.single.layout.groups.single.channels, {5, 6});
+    final state = reopened.layouts.single.resolvedLayout(1);
+    expect(state.channels, {1, 2, 3, 9});
+    expect(state.groups.single.channels, {5, 6});
   });
 
   test('keeps insertion order across a reload', () async {
@@ -85,7 +86,7 @@ void main() {
     final reopened = LayoutManager();
     await reopened.load();
     expect(reopened.layouts.single.name, 'Monitor Batería');
-    expect(reopened.layouts.single.layout.channels, {7, 8});
+    expect(reopened.layouts.single.resolvedLayout(1).channels, {7, 8});
   });
 
   test('a corrupt store loads as empty instead of throwing', () async {

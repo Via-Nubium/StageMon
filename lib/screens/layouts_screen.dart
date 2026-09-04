@@ -272,13 +272,11 @@ class _LayoutsScreenState extends State<LayoutsScreen> {
   }
 
   String _layoutSummary(AppLocalizations l, SavedLayout saved) {
-    final state = saved.layout;
-    final visibleGroups = state.groups.where((g) => g.visible).length;
     final parts = [
-      l.channelCount(state.channels.length),
-      if (state.lineInVisible) l.lineIn,
-      if (state.fxReturns.isNotEmpty) l.fxReturnCount(state.fxReturns.length),
-      if (visibleGroups > 0) l.groupCount(visibleGroups),
+      l.channelCount(saved.channelCount),
+      if (saved.hasLineIn) l.lineIn,
+      if (saved.fxReturnCount > 0) l.fxReturnCount(saved.fxReturnCount),
+      if (saved.visibleGroupCount > 0) l.groupCount(saved.visibleGroupCount),
       if (saved.bus != null) l.busTitleMono(saved.bus!),
     ];
     return parts.join(' · ');

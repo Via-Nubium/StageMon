@@ -71,20 +71,25 @@ void main() {
     expect(back.name, original.name);
     expect(back.console, original.console);
     expect(back.bus, original.bus);
-    expect(back.layout.channels, original.layout.channels);
-    expect(back.layout.channelColors, original.layout.channelColors);
-    expect(back.layout.fxReturns, original.layout.fxReturns);
-    expect(back.layout.fxReturnColors, original.layout.fxReturnColors);
-    expect(back.layout.lineInVisible, original.layout.lineInVisible);
-    expect(back.layout.lineInColor, original.layout.lineInColor);
-    expect(back.layout.busFaderVisible, original.layout.busFaderVisible);
-    expect(back.layout.busFaderPinned, original.layout.busFaderPinned);
-    expect(back.layout.busColors, original.layout.busColors);
 
-    expect(back.layout.groups.length, 1);
-    expect(back.layout.groups.first.channels, {5, 6});
-    expect(back.layout.groups.first.fxReturns, {1});
-    expect(back.layout.groups.first.colorIndex, 7);
+    // The state only comes out resolved, so both sides are asked for it the
+    // same way; the bus itself is checked above, through SavedLayout.bus.
+    final backState = back.resolvedLayout(1);
+    final originalState = original.resolvedLayout(1);
+    expect(backState.channels, originalState.channels);
+    expect(backState.channelColors, originalState.channelColors);
+    expect(backState.fxReturns, originalState.fxReturns);
+    expect(backState.fxReturnColors, originalState.fxReturnColors);
+    expect(backState.lineInVisible, originalState.lineInVisible);
+    expect(backState.lineInColor, originalState.lineInColor);
+    expect(backState.busFaderVisible, originalState.busFaderVisible);
+    expect(backState.busFaderPinned, originalState.busFaderPinned);
+    expect(backState.busColors, originalState.busColors);
+
+    expect(backState.groups.length, 1);
+    expect(backState.groups.first.channels, {5, 6});
+    expect(backState.groups.first.fxReturns, {1});
+    expect(backState.groups.first.colorIndex, 7);
   });
 
   test('keeps an explicit "no color" entry distinct from an absent one', () {
@@ -93,9 +98,10 @@ void main() {
     );
     // Channel 2 was saved as an explicit null (console color wins);
     // channel 3 is visible but was never given one at all.
-    expect(back.layout.channelColors.containsKey(2), isTrue);
-    expect(back.layout.channelColors[2], isNull);
-    expect(back.layout.channelColors.containsKey(3), isFalse);
+    final colors = back.resolvedLayout(1).channelColors;
+    expect(colors.containsKey(2), isTrue);
+    expect(colors[2], isNull);
+    expect(colors.containsKey(3), isFalse);
   });
 
   test('preserves a null bus, meaning "leave the current bus alone"', () {
@@ -109,6 +115,23 @@ void main() {
       jsonDecode(jsonEncode(layout.toJson())) as Map<String, dynamic>,
     );
     expect(back.bus, isNull);
+    // And the state only comes out through resolvedLayout, so the bus it
+    // carries is the one the caller supplied — never the placeholder
+    // fromJson had to put there to build a MixerLayoutState at all.
+    expect(back.resolvedLayout(4).bus, 4);
+  });
+
+  test('a recorded bus wins over the one passed to resolvedLayout', () {
+    final saved = SavedLayout(
+      name: 'Con bus',
+      console: 'XR18',
+      bus: 3,
+      layout: MixerLayoutState.defaults(),
+    );
+    final back = SavedLayout.fromJson(
+      jsonDecode(jsonEncode(saved.toJson())) as Map<String, dynamic>,
+    );
+    expect(back.resolvedLayout(4).bus, 3);
   });
 
   test("a recorded bus overrides layout's own bus in the JSON", () {
@@ -197,9 +220,10 @@ void main() {
 
     final back = SavedLayout.fromJson(json);
     expect(back.name, 'Monitor Guitarra');
-    expect(back.layout.channels, MixerLayoutState.defaults().channels);
+    final state = back.resolvedLayout(1);
+    expect(state.channels, MixerLayoutState.defaults().channels);
     // The undamaged fields came through untouched.
-    expect(back.layout.fxReturns, {2, 4});
-    expect(back.layout.busColors, {3: 11});
+    expect(state.fxReturns, {2, 4});
+    expect(state.busColors, {3: 11});
   });
 }

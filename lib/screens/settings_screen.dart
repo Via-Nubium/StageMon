@@ -260,7 +260,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() {
         // result.bus null means "leave the current bus alone" — see
         // SavedLayout.bus.
-        _state = result.layout.copyWith(bus: result.bus ?? _state.bus);
+        _state = result.resolvedLayout(_state.bus);
       });
     }
   }
