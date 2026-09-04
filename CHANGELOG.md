@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased]
+## [1.2.0] - 2026-09-04
 
 ### Added
 - FX return names configured on the mixer are now shown on the FX faders and on their chips in Settings and group setup, the same way channel names already were.

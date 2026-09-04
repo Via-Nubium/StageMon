@@ -14,9 +14,9 @@ Designed for live sound: each musician on stage can use StageMon to adjust their
 - **Stereo bus support** — detects paired buses (1/2, 3/4, 5/6) and shows pan knobs automatically
 - **VCA-style group faders** — move multiple channels together while preserving relative levels
 - **Snapshots** — save and restore complete mix states (levels, pans, aux master)
-- **Layouts** — save a screen setup (visible channels, groups, colors, and optionally the aux bus) under a name, reload it later, and share it to another device
+- **Layouts** — save a screen setup (visible channels, groups, colors, fader sizes, and optionally the aux bus) under a name, reload it later, and share it to another device
 - **Channel and bus colors** — color-code channels, LINE, FX returns, MASTER, and group faders using the mixer's own 16 scribble-strip colors, or sync automatically to whatever color is set on the console
-- **Pinch-to-resize faders** — pinch with two fingers over the faders to show more or fewer channels at once
+- **Pinch-to-resize faders** — pinch with two fingers over the faders to show more or fewer channels at once, on the mixer screen and inside a group; each keeps its own size
 - **VU meters** — real-time channel and bus level indicators
 - **Channel visibility** — show only the channels that matter for each monitor mix
 - **Stays awake while connected** — the screen won't lock during a show; it just dims after your phone's normal timeout and brightens on the next touch
