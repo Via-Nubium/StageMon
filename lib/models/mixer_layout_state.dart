@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'fader_width.dart';
 import 'group_fader_config.dart';
 
 // Sentinel default for MixerLayoutState.copyWith's lineInColor parameter —
@@ -11,8 +12,9 @@ class _Unset {
 const _unset = _Unset();
 
 /// Everything that makes up "what the mixer screen is showing": which
-/// faders are visible, their local color overrides, and the selected bus.
-/// This is the one place these 11 fields are declared — it used to be
+/// faders are visible, how wide they are drawn, their local color overrides,
+/// and the selected bus.
+/// This is the one place these 12 fields are declared — it used to be
 /// copied across the mixer screen, SettingsScreen, LayoutsScreen, a
 /// SharedPreferences codec and SavedLayout independently, which let those
 /// copies drift out of sync with each other.
@@ -35,6 +37,9 @@ class MixerLayoutState {
   final Map<int, int?> busColors; // keyed by bus number, see busColorKey()
   final List<GroupFaderConfig> groups;
 
+  /// Width of the mixer's resizable columns — the value a pinch produces.
+  final double faderWidth;
+
   MixerLayoutState({
     required this.bus,
     required Set<int> channels,
@@ -47,6 +52,7 @@ class MixerLayoutState {
     required this.busFaderPinned,
     required Map<int, int?> busColors,
     required List<GroupFaderConfig> groups,
+    required this.faderWidth,
   }) : channels = Set.of(channels),
        channelColors = Map.of(channelColors),
        fxReturns = Set.of(fxReturns),
@@ -68,6 +74,7 @@ class MixerLayoutState {
     busFaderPinned: false,
     busColors: {},
     groups: GroupFaderConfig.defaultConfigs(),
+    faderWidth: kDefaultFaderWidth,
   );
 
   // lineInColor needs to distinguish "leave it alone" from "clear the
@@ -89,6 +96,7 @@ class MixerLayoutState {
     bool? busFaderPinned,
     Map<int, int?>? busColors,
     List<GroupFaderConfig>? groups,
+    double? faderWidth,
   }) => MixerLayoutState(
     bus: bus ?? this.bus,
     channels: channels ?? this.channels,
@@ -103,6 +111,7 @@ class MixerLayoutState {
     busFaderPinned: busFaderPinned ?? this.busFaderPinned,
     busColors: busColors ?? this.busColors,
     groups: groups ?? this.groups,
+    faderWidth: faderWidth ?? this.faderWidth,
   );
 
   Map<String, dynamic> toJson() => {
@@ -122,6 +131,7 @@ class MixerLayoutState {
       'colors': busColors.map((k, v) => MapEntry(k.toString(), v)),
     },
     'groups': groups.map(_groupToJson).toList(),
+    'faderWidth': faderWidth,
   };
 
   /// [fallbackBus] is used when the JSON carries no bus at all — a
@@ -132,7 +142,7 @@ class MixerLayoutState {
   ///
   /// Every field is read independently: a broken sub-object for one
   /// field (e.g. `channels` is a string instead of a map) falls back to
-  /// its own default without disturbing the other ten.
+  /// its own default without disturbing the other eleven.
   factory MixerLayoutState.fromJson(
     Map<String, dynamic> json, {
     required int fallbackBus,
@@ -200,6 +210,15 @@ class MixerLayoutState {
           .toList();
     } catch (_) {}
 
+    // A layout written before widths were stored carries none, and loading
+    // one puts the faders back at the default size — deliberately, rather
+    // than keeping whatever width happened to be in use: only a handful of
+    // layouts predate this, and re-saving them costs nothing.
+    double faderWidth = d.faderWidth;
+    try {
+      faderWidth = clampFaderWidth(json['faderWidth'] as num);
+    } catch (_) {}
+
     return MixerLayoutState(
       bus: bus,
       channels: channels,
@@ -212,6 +231,7 @@ class MixerLayoutState {
       busFaderPinned: busFaderPinned,
       busColors: busColors,
       groups: groups,
+      faderWidth: faderWidth,
     );
   }
 

@@ -1,8 +1,8 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart' show HitTestResult, RenderMetaData;
 import 'package:flutter/widgets.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/fader_width.dart';
 import '../widgets/custom_fader.dart';
 
 // The marker [ForeignGestureArea] plants in the tree and _stripTargetAt looks
@@ -29,9 +29,6 @@ class ForeignGestureArea extends StatelessWidget {
 /// The bus column sits outside the pinch-resize, so it keeps a fixed width and
 /// is accounted for separately in the strip-extent math.
 const double kBusColumnWidth = 90;
-
-const double _minFaderWidth = 60;
-const double _maxFaderWidth = 140;
 
 // Movement needed to lock a pointer's role in (fader-drag vs. strip). This is
 // the main "feel" knob: lower = faders react sooner, higher = fast horizontal
@@ -64,18 +61,35 @@ class _TrackedPointer {
 /// fader (vertical intent, landed on one), or is it part of the strip's
 /// scroll/pinch (horizontal intent, or landed elsewhere)?
 class FaderStripController extends ChangeNotifier {
-  /// Where this strip's pinched width is remembered. Each strip gets its
-  /// own: how wide you want the mixer's faders and how wide you want a
-  /// group's three of them are different answers.
-  final String widthPrefsKey;
+  /// Called when the user lifts the last finger after a pinch that actually
+  /// changed the width. Where that width is kept — which layout, which group —
+  /// is the screen's business, not this class's.
+  final void Function(double width)? onWidthCommitted;
 
-  FaderStripController({required this.widthPrefsKey});
+  FaderStripController({
+    double initialWidth = kDefaultFaderWidth,
+    this.onWidthCommitted,
+  }) : _faderWidth = initialWidth,
+       _committedWidth = initialWidth;
 
   final ScrollController scrollController = ScrollController();
 
   /// Width of every resizable column, the value a pinch changes.
   double get faderWidth => _faderWidth;
-  double _faderWidth = 90;
+  double _faderWidth;
+
+  // Last width handed to onWidthCommitted, so releasing the strip after a
+  // plain scroll doesn't report a change that didn't happen.
+  double _committedWidth;
+
+  /// Adopts a width decided elsewhere — a layout being loaded or imported.
+  void applyWidth(double width) {
+    final clamped = clampFaderWidth(width);
+    if (clamped == _faderWidth) return;
+    _faderWidth = clamped;
+    _committedWidth = clamped;
+    notifyListeners();
+  }
 
   final Map<Object, FaderDragController> _faderControllers = {};
   final Map<int, _TrackedPointer> _pointers = {}; // insertion-ordered
@@ -106,8 +120,6 @@ class FaderStripController extends ChangeNotifier {
   double _stripPanTravel = 0;
   bool _stripOverscrolled = false;
 
-  bool _disposed = false;
-
   // ── Strip composition, fed from the build ───────────────────────────────
 
   /// The drag controller for one column, created on first use so it survives
@@ -129,15 +141,6 @@ class FaderStripController extends ChangeNotifier {
   }) {
     _stripScalableColumns = scalableColumns;
     _stripFixedWidth = fixedWidth;
-  }
-
-  /// Restores the width the user last pinched to.
-  Future<void> loadSavedWidth() async {
-    final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getDouble(widthPrefsKey);
-    if (saved == null || _disposed) return;
-    _faderWidth = saved.clamp(_minFaderWidth, _maxFaderWidth);
-    notifyListeners();
   }
 
   // ── Pointer routing ─────────────────────────────────────────────────────
@@ -204,9 +207,10 @@ class FaderStripController extends ChangeNotifier {
     if (p.role == _PointerRole.fader) {
       p.controller!.endDrag();
     } else if (p.role == _PointerRole.strip) {
-      SharedPreferences.getInstance().then(
-        (prefs) => prefs.setDouble(widthPrefsKey, _faderWidth),
-      );
+      if (_faderWidth != _committedWidth) {
+        _committedWidth = _faderWidth;
+        onWidthCommitted?.call(_faderWidth);
+      }
       if (_stripPointers.isEmpty) {
         _flingStrip();
       } else {
@@ -280,10 +284,7 @@ class FaderStripController extends ChangeNotifier {
         1.0,
         double.infinity,
       );
-      newWidth = (_stripRefWidth * distance / _stripRefDistance).clamp(
-        _minFaderWidth,
-        _maxFaderWidth,
-      );
+      newWidth = clampFaderWidth(_stripRefWidth * distance / _stripRefDistance);
     }
     if (scrollController.hasClients) {
       double offset = scrollController.offset;
@@ -385,7 +386,6 @@ class FaderStripController extends ChangeNotifier {
 
   @override
   void dispose() {
-    _disposed = true;
     scrollController.dispose();
     super.dispose();
   }

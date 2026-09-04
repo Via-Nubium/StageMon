@@ -44,10 +44,9 @@ class _MixerScreenState extends State<MixerScreen> {
   final SnapshotManager _snapshots = SnapshotManager();
 
   // Owns the strip's horizontal scroll, its pinch-to-resize width and the
-  // routing of every touch that lands on it.
-  final FaderStripController _strip = FaderStripController(
-    widthPrefsKey: 'fader_width',
-  );
+  // routing of every touch that lands on it. The width it produces belongs to
+  // the layout, so it is stored and restored with the rest of it.
+  late final FaderStripController _strip;
 
   @override
   void initState() {
@@ -57,8 +56,10 @@ class _MixerScreenState extends State<MixerScreen> {
       simulator: widget.simulator,
     );
     ScreenAwakeService.start();
-    _strip.addListener(_onStripChanged);
-    _strip.loadSavedWidth();
+    _strip = FaderStripController(
+      initialWidth: _layout.faderWidth,
+      onWidthCommitted: _onFaderWidthPinched,
+    )..addListener(_onStripChanged);
     _snapshots.load().then((_) {
       if (mounted) setState(() {});
     });
@@ -91,7 +92,7 @@ class _MixerScreenState extends State<MixerScreen> {
   void _loadLayout() async {
     final loaded = await MixerLayoutState.loadFromPrefs(fallbackBus: _ctrl.bus);
     if (!mounted) return;
-    setState(() => _layout = loaded);
+    _applyLayout(loaded);
     if (loaded.bus != _ctrl.bus) _ctrl.changeBus(loaded.bus);
   }
 
@@ -106,6 +107,18 @@ class _MixerScreenState extends State<MixerScreen> {
 
   void _onStripChanged() {
     if (mounted) setState(() {});
+  }
+
+  void _onFaderWidthPinched(double width) {
+    setState(() => _layout = _layout.copyWith(faderWidth: width));
+    _layout.saveToPrefs();
+  }
+
+  // A layout arriving from anywhere — prefs at startup, Settings, a loaded or
+  // imported file — carries the width the strip should be showing.
+  void _applyLayout(MixerLayoutState layout) {
+    setState(() => _layout = layout);
+    _strip.applyWidth(layout.faderWidth);
   }
 
   // ── Navigation / dialogs ──────────────────────────────────────────────────
@@ -148,7 +161,7 @@ class _MixerScreenState extends State<MixerScreen> {
     );
     if (result != null && mounted) {
       _ctrl.changeBus(result.bus);
-      setState(() => _layout = result);
+      _applyLayout(result);
       _layout.saveToPrefs();
     }
   }

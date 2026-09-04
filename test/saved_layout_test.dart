@@ -24,6 +24,7 @@ MixerLayoutState buildLayoutState() => MixerLayoutState(
   busFaderVisible: false,
   busFaderPinned: true,
   busColors: {3: 11},
+  faderWidth: 125.0,
   groups: [
     const GroupFaderConfig(
       name: 'Batería',
@@ -32,6 +33,7 @@ MixerLayoutState buildLayoutState() => MixerLayoutState(
       fxReturns: {1},
       lineIn: true,
       colorIndex: 7,
+      faderWidth: 70,
     ),
   ],
 );

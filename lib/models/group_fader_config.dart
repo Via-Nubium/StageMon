@@ -1,3 +1,5 @@
+import 'fader_width.dart';
+
 class GroupFaderConfig {
   final String name;
   final bool visible;
@@ -8,6 +10,12 @@ class GroupFaderConfig {
   // there's no console color to sync from — just a manually picked one.
   // Defaults to Green Inv, the color the fixed group-fader green used to be.
   final int colorIndex;
+  /// Width of the faders inside this group's detail screen. A group of three
+  /// is usually wanted spread wide even when the mixer is packed with sixteen.
+  ///
+  /// Width of the faders inside this group's detail screen. A group of three
+  /// is usually wanted spread wide even when the mixer is packed with sixteen.
+  final double faderWidth;
 
   static const int defaultColorIndex = 10; // GNi — Verde Inv
 
@@ -18,6 +26,7 @@ class GroupFaderConfig {
     this.fxReturns = const {},
     this.lineIn = false,
     this.colorIndex = defaultColorIndex,
+    this.faderWidth = kDefaultFaderWidth,
   });
 
   int get memberCount => channels.length + fxReturns.length + (lineIn ? 1 : 0);
@@ -29,6 +38,7 @@ class GroupFaderConfig {
     Set<int>? fxReturns,
     bool? lineIn,
     int? colorIndex,
+    double? faderWidth,
   }) => GroupFaderConfig(
         name: name ?? this.name,
         visible: visible ?? this.visible,
@@ -36,6 +46,7 @@ class GroupFaderConfig {
         fxReturns: fxReturns ?? this.fxReturns,
         lineIn: lineIn ?? this.lineIn,
         colorIndex: colorIndex ?? this.colorIndex,
+        faderWidth: faderWidth ?? this.faderWidth,
       );
 
   Map<String, dynamic> toJson() => {
@@ -45,6 +56,7 @@ class GroupFaderConfig {
         'fxReturns': fxReturns.toList(),
         'lineIn': lineIn,
         'colorIndex': colorIndex,
+        'faderWidth': faderWidth,
       };
 
   factory GroupFaderConfig.fromJson(Map<String, dynamic> json) => GroupFaderConfig(
@@ -59,6 +71,11 @@ class GroupFaderConfig {
         // mixer_layout_state.dart.
         colorIndex:
             (json['colorIndex'] as int?)?.clamp(0, 15) ?? defaultColorIndex,
+        // Clamped for the same reason as the color above: this arrives from a
+        // file anyone can edit.
+        faderWidth: json['faderWidth'] is num
+            ? clampFaderWidth(json['faderWidth'] as num)
+            : kDefaultFaderWidth,
       );
 
   static List<GroupFaderConfig> defaultConfigs() => [

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stagemon/models/group_fader_config.dart';
+import 'package:stagemon/models/fader_width.dart';
 import 'package:stagemon/models/mixer_layout_state.dart';
 
 // MixerLayoutState is the single codec shared by SharedPreferences and the
@@ -20,6 +21,7 @@ MixerLayoutState buildState() => MixerLayoutState(
   busFaderVisible: false,
   busFaderPinned: true,
   busColors: {3: 11},
+  faderWidth: 110.0,
   groups: [
     const GroupFaderConfig(
       name: 'Batería',
@@ -28,6 +30,7 @@ MixerLayoutState buildState() => MixerLayoutState(
       fxReturns: {1},
       lineIn: true,
       colorIndex: 7,
+      faderWidth: 70,
     ),
   ],
 );
@@ -61,8 +64,10 @@ void main() {
           'fxReturns': [1],
           'lineIn': true,
           'color': 7,
+          'faderWidth': 70.0,
         },
       ],
+      'faderWidth': 110.0,
     });
   });
 
@@ -88,6 +93,54 @@ void main() {
     expect(back.groups.first.fxReturns, {1});
     expect(back.groups.first.lineIn, isTrue);
     expect(back.groups.first.colorIndex, 7);
+    expect(back.faderWidth, original.faderWidth);
+    expect(back.groups.first.faderWidth, original.groups.first.faderWidth);
+  });
+
+  group('faderWidth', () {
+    // The width was stored in its own SharedPreferences key until it moved
+    // in here, so layouts written before that carry no width at all. Reading
+    // one has to leave the width alone rather than snap it to a default the
+    // user never chose.
+    // A layout written before widths were stored carries none. Such a file
+    // puts the faders back at the default size rather than keeping whatever
+    // was in use — chosen deliberately over the extra machinery that
+    // preserving them would need, for the handful of layouts that predate
+    // this and cost nothing to re-save.
+    test('a layout without one falls back to the default', () {
+      final json = buildState().toJson()..remove('faderWidth');
+      (json['groups'] as List).first.remove('faderWidth');
+      final back = MixerLayoutState.fromJson(json, fallbackBus: 1);
+      expect(back.faderWidth, kDefaultFaderWidth);
+      expect(back.groups.first.faderWidth, kDefaultFaderWidth);
+    });
+
+    // A layout file is shared and hand-editable, so a width out of range is
+    // as reachable as the color indices already clamped alongside it.
+    test('is clamped on the way in, at both ends', () {
+      final wide = buildState().toJson();
+      wide['faderWidth'] = 5000;
+      (wide['groups'] as List).first['faderWidth'] = 9999;
+      final back = MixerLayoutState.fromJson(wide, fallbackBus: 1);
+      expect(back.faderWidth, kMaxFaderWidth);
+      expect(back.groups.first.faderWidth, kMaxFaderWidth);
+
+      final narrow = buildState().toJson();
+      narrow['faderWidth'] = 1;
+      (narrow['groups'] as List).first['faderWidth'] = -20;
+      final back2 = MixerLayoutState.fromJson(narrow, fallbackBus: 1);
+      expect(back2.faderWidth, kMinFaderWidth);
+      expect(back2.groups.first.faderWidth, kMinFaderWidth);
+    });
+
+    test('a width that is not a number falls back to the default', () {
+      final json = buildState().toJson();
+      json['faderWidth'] = 'ancho';
+      (json['groups'] as List).first['faderWidth'] = null;
+      final back = MixerLayoutState.fromJson(json, fallbackBus: 1);
+      expect(back.faderWidth, kDefaultFaderWidth);
+      expect(back.groups.first.faderWidth, kDefaultFaderWidth);
+    });
   });
 
   test('a missing bus falls back to fallbackBus, not to 1', () {

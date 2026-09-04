@@ -36,11 +36,9 @@ class GroupDetailScreen extends StatefulWidget {
 class _GroupDetailScreenState extends State<GroupDetailScreen> {
   late List<GroupFaderConfig> _configs;
 
-  // Its own strip, and its own remembered width: a group of three faders is
-  // usually wanted spread across the screen even when the mixer is packed.
-  final FaderStripController _strip = FaderStripController(
-    widthPrefsKey: 'group_fader_width',
-  );
+  // Its own strip, and its own width, kept on the group itself: three faders
+  // are usually wanted spread across the screen even when the mixer is packed.
+  late final FaderStripController _strip;
 
   GroupFaderConfig get _config => _configs[widget.groupIndex];
 
@@ -48,8 +46,10 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   void initState() {
     super.initState();
     _configs = widget.layout.groups;
-    _strip.addListener(_onStripChanged);
-    _strip.loadSavedWidth();
+    _strip = FaderStripController(
+      initialWidth: _config.faderWidth,
+      onWidthCommitted: _onFaderWidthPinched,
+    )..addListener(_onStripChanged);
   }
 
   @override
@@ -60,6 +60,14 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
   void _onStripChanged() {
     if (mounted) setState(() {});
+  }
+
+  void _onFaderWidthPinched(double width) {
+    setState(() {
+      _configs = List.of(_configs);
+      _configs[widget.groupIndex] = _config.copyWith(faderWidth: width);
+    });
+    widget.onConfigsChanged(_configs);
   }
 
   void _openConfig() async {
