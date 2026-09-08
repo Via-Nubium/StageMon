@@ -34,6 +34,7 @@ void main() {
     supportedLocales: const [
       Locale('en'),
       Locale('es'),
+      Locale('eu'),
     ],
     theme: ThemeData(
       colorScheme: ColorScheme.fromSeed(

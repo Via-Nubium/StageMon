@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+### Added
+- Basque (Euskara) is now available as an app language.
+- The About screen now credits volunteer translators — Iker Viteri Valle for Basque.
+
 ## [1.2.0] - 2026-09-04
 
 ### Added
