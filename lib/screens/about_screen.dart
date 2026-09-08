@@ -7,6 +7,10 @@ import 'diagnostics_screen.dart';
 
 const _privacyPolicyUrl = 'https://via-nubium.github.io/stagemon/privacy.html';
 
+// Volunteer translators, credited under the native name of the language
+// they translated (not its English or Spanish name) — see app_eu.arb.
+const _translators = <({String language, String name})>[];
+
 class AboutScreen extends StatefulWidget {
   const AboutScreen({super.key});
 
@@ -94,6 +98,19 @@ class _AboutScreenState extends State<AboutScreen> {
               style: TextStyle(color: Colors.white70),
             ),
           ),
+          if (_translators.isNotEmpty) ...[
+            const Divider(height: 1),
+            ListTile(title: Text(l.translations)),
+            for (final t in _translators)
+              ListTile(
+                dense: true,
+                title: Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Text(t.language, style: const TextStyle(color: Colors.white70)),
+                ),
+                trailing: Text(t.name, style: const TextStyle(color: Colors.white70)),
+              ),
+          ],
           const Divider(height: 1),
           ListTile(
             title: Text(l.privacyPolicy),

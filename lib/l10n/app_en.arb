@@ -216,6 +216,9 @@
   "developer": "Developer",
   "@developer": {},
 
+  "translations": "Translations",
+  "@translations": {},
+
   "privacyPolicy": "Privacy policy",
   "@privacyPolicy": {},
 
