@@ -18,7 +18,7 @@ String busFaderTitle({
     final nameEven = busNames[even];
     final hasOdd = nameOdd != null && nameOdd.isNotEmpty;
     final hasEven = nameEven != null && nameEven.isNotEmpty;
-    if (!hasOdd && !hasEven) return '${l.busTitleMono(odd)}/$even';
+    if (!hasOdd && !hasEven) return busPairTitle(odd, even, l);
     final left = hasOdd ? nameOdd : l.busTitleMono(odd);
     final right = hasEven ? nameEven : l.busTitleMono(even);
     return left == right ? left : '$left/$right';
@@ -26,6 +26,14 @@ String busFaderTitle({
   final name = busNames[bus];
   return (name == null || name.isEmpty) ? l.busTitleMono(bus) : name;
 }
+
+/// A linked pair's title when neither side has a console name — the one
+/// piece of formatting genuinely shared between [busFaderTitle] and the
+/// settings screen's bus picker, which otherwise lay out named pairs
+/// differently. Left to each locale so word order (e.g. "Bus 1/2" vs
+/// "1/2 busa") comes out grammatical.
+String busPairTitle(int bus1, int bus2, AppLocalizations l) =>
+    l.busPairTitle(bus1, bus2);
 
 /// The bus number a color (or other per-bus override) should be keyed
 /// under: the pair's base (odd) bus when linked, otherwise the bus itself.

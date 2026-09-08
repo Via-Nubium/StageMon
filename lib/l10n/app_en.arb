@@ -145,6 +145,14 @@
     }
   },
 
+  "busPairTitle": "Bus {bus1}/{bus2}",
+  "@busPairTitle": {
+    "placeholders": {
+      "bus1": {"type": "int"},
+      "bus2": {"type": "int"}
+    }
+  },
+
   "configureGroup": "Configure {name}",
   "@configureGroup": {
     "placeholders": {

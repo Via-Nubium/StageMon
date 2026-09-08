@@ -354,7 +354,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final hasOdd = nameOdd != null && nameOdd.isNotEmpty;
     final hasEven = nameEven != null && nameEven.isNotEmpty;
     if (!hasOdd && !hasEven) {
-      return '${AppLocalizations.of(context)!.busTitleMono(odd)}/$even';
+      return busPairTitle(odd, even, AppLocalizations.of(context)!);
     }
     final base = '$odd/$even';
     if (hasOdd && hasEven) {

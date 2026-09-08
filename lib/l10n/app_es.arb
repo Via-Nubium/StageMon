@@ -41,6 +41,7 @@
   "wifiConnectionLost": "Se perdió la conexión wifi",
   "snapshotNameTitle": "Nombre del snapshot",
   "busTitleMono": "Bus {bus}",
+  "busPairTitle": "Bus {bus1}/{bus2}",
   "configureGroup": "Configurar {name}",
   "channelAlreadyAssigned": "Canal ya asignado",
   "reassignConfirm": "\"{label}\" ya pertenece a \"{other}\". ¿Querés reasignarlo a \"{current}\"?",
