@@ -5,11 +5,16 @@ import 'package:stagemon/l10n/app_localizations.dart';
 import 'screens/connect_screen.dart';
 import 'services/screen_awake_service.dart';
 
+// Test a specific locale without changing the device's language, e.g.:
+// flutter run --dart-define=FORCE_LOCALE=eu
+const _forcedLocale = String.fromEnvironment('FORCE_LOCALE');
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   runApp(MaterialApp(
     home: const ConnectScreen(),
+    locale: _forcedLocale.isEmpty ? null : Locale(_forcedLocale),
     debugShowCheckedModeBanner: false,
     // Global pointer watcher for ScreenAwakeService's inactivity timer — a
     // no-op while it's inactive (i.e. on the connect screen). `Listener`
