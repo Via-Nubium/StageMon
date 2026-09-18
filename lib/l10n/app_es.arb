@@ -53,6 +53,7 @@
   "groupNameTitle": "Nombre del grupo",
   "inGroup": "En {name}",
   "groupTitle": "Grupo: {name}",
+  "groupDefaultName": "Grupo {number}",
   "editGroupChannels": "Editar canales del grupo",
   "noChannelsInGroup": "Este grupo no tiene entradas asignadas.",
   "about": "Acerca de",

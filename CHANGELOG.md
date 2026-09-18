@@ -10,6 +10,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Basque (Euskara) is now available as an app language.
 - The About screen now credits volunteer translators — Iker Viteri Valle for Basque.
 
+### Fixed
+- The four groups a new install starts with were named "Grupo 1"-"Grupo 4" in Spanish regardless of the app's language. They are now named in the app's language. Groups already on your device keep the names they have, and can be renamed from the group's setup screen.
+
 ## [1.2.0] - 2026-09-04
 
 ### Added

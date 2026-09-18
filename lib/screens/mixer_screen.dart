@@ -90,8 +90,16 @@ class _MixerScreenState extends State<MixerScreen> {
   }
 
   void _loadLayout() async {
-    final loaded = await MixerLayoutState.loadFromPrefs(fallbackBus: _ctrl.bus);
+    final stored = await MixerLayoutState.loadFromPrefs(fallbackBus: _ctrl.bus);
     if (!mounted) return;
+    // A group's name is stored, so the four defaults can only be localized
+    // the once, here on a first run — reading the localizations after the
+    // await, since initState has no context to read them from.
+    final l = AppLocalizations.of(context)!;
+    final loaded = stored ??
+        MixerLayoutState.defaults(
+          groupNames: [for (var i = 1; i <= 4; i++) l.groupDefaultName(i)],
+        );
     _applyLayout(loaded);
     if (loaded.bus != _ctrl.bus) _ctrl.changeBus(loaded.bus);
   }

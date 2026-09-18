@@ -60,7 +60,11 @@ class MixerLayoutState {
        busColors = Map.of(busColors),
        groups = List.of(groups);
 
-  factory MixerLayoutState.defaults() => MixerLayoutState(
+  /// [groupNames] are the localized names the four default groups are
+  /// born with — see [GroupFaderConfig.defaultConfigs]. Omitted where
+  /// there is no context to localize against.
+  factory MixerLayoutState.defaults({List<String>? groupNames}) =>
+      MixerLayoutState(
     bus: 1,
     // All 16 channels start visible — matches the field initializer a
     // fresh _MixerScreenState used before this class existed.
@@ -73,7 +77,7 @@ class MixerLayoutState {
     busFaderVisible: true,
     busFaderPinned: false,
     busColors: {},
-    groups: GroupFaderConfig.defaultConfigs(),
+    groups: GroupFaderConfig.defaultConfigs(names: groupNames),
     faderWidth: kDefaultFaderWidth,
   );
 
@@ -235,15 +239,20 @@ class MixerLayoutState {
     );
   }
 
-  static Future<MixerLayoutState> loadFromPrefs({int fallbackBus = 1}) async {
+  /// The stored layout, or null when there is nothing usable stored — a
+  /// first run, or a blob too damaged to parse at all.
+  ///
+  /// Null rather than [defaults] so the caller, which unlike this has a
+  /// BuildContext, can build those defaults with localized group names.
+  static Future<MixerLayoutState?> loadFromPrefs({int fallbackBus = 1}) async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(prefsKey);
-    if (raw == null) return MixerLayoutState.defaults();
+    if (raw == null) return null;
     try {
       final json = jsonDecode(raw) as Map<String, dynamic>;
       return MixerLayoutState.fromJson(json, fallbackBus: fallbackBus);
     } catch (_) {
-      return MixerLayoutState.defaults();
+      return null;
     }
   }
 

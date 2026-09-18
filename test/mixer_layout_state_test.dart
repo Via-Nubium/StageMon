@@ -186,9 +186,11 @@ void main() {
     });
   });
 
-  test('an empty store loads as defaults()', () async {
+  test('an empty store loads as null, and the caller falls back to defaults()',
+      () async {
     SharedPreferences.setMockInitialValues({});
-    final state = await MixerLayoutState.loadFromPrefs();
+    expect(await MixerLayoutState.loadFromPrefs(), isNull);
+    final state = MixerLayoutState.defaults();
     final defaults = MixerLayoutState.defaults();
 
     expect(state.bus, defaults.bus);
@@ -211,7 +213,7 @@ void main() {
     final original = buildState();
     await original.saveToPrefs();
 
-    final back = await MixerLayoutState.loadFromPrefs();
+    final back = (await MixerLayoutState.loadFromPrefs())!;
     expect(back.bus, original.bus);
     expect(back.channels, original.channels);
     expect(back.channelColors, original.channelColors);

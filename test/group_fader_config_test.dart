@@ -65,4 +65,18 @@ void main() {
       expect(c.colorIndex, GroupFaderConfig.defaultColorIndex);
     }
   });
+
+  test('the default groups take the localized names the caller passes', () {
+    final named = GroupFaderConfig.defaultConfigs(
+      names: ['Grupo 1', 'Grupo 2', 'Grupo 3', 'Grupo 4'],
+    );
+    expect(named.map((c) => c.name), ['Grupo 1', 'Grupo 2', 'Grupo 3', 'Grupo 4']);
+  });
+
+  test('without names, the defaults fall back to English', () {
+    expect(
+      GroupFaderConfig.defaultConfigs().map((c) => c.name),
+      ['Group 1', 'Group 2', 'Group 3', 'Group 4'],
+    );
+  });
 }

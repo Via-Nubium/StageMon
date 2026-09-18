@@ -52,6 +52,7 @@
   "groupNameTitle": "Taldearen izena",
   "inGroup": "{name}-n",
   "groupTitle": "{name} taldean",
+  "groupDefaultName": "{number} taldea",
   "editGroupChannels": "Taldeko kanalak editatu",
   "noChannelsInGroup": "Talde honek ez dauka sarrerarik asignatuta.",
   "about": "Honi buruz",

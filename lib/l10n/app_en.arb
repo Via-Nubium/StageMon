@@ -204,6 +204,14 @@
     }
   },
 
+  "groupDefaultName": "Group {number}",
+  "@groupDefaultName": {
+    "description": "Name a group fader is born with, before the user renames it. Baked into the stored layout on first run, so it stays in the language the app was first opened in.",
+    "placeholders": {
+      "number": {"type": "int"}
+    }
+  },
+
   "editGroupChannels": "Edit group channels",
   "@editGroupChannels": {},
 

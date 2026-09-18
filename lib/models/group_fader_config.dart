@@ -78,10 +78,21 @@ class GroupFaderConfig {
             : kDefaultFaderWidth,
       );
 
-  static List<GroupFaderConfig> defaultConfigs() => [
-        GroupFaderConfig(name: 'Grupo 1', channels: {}, fxReturns: {}),
-        GroupFaderConfig(name: 'Grupo 2', channels: {}, fxReturns: {}),
-        GroupFaderConfig(name: 'Grupo 3', channels: {}, fxReturns: {}),
-        GroupFaderConfig(name: 'Grupo 4', channels: {}, fxReturns: {}),
+  /// The four groups a layout starts with.
+  ///
+  /// [names] are the localized defaults ("Group 1"...) the caller resolved
+  /// from AppLocalizations — a group's name is stored, not resolved at paint
+  /// time, so it can only be localized where there's a context to read. The
+  /// English fallback covers the paths that have none: the placeholder layout
+  /// a screen holds before its stored one loads, and a corrupt `groups` field.
+  static List<GroupFaderConfig> defaultConfigs({List<String>? names}) => [
+        for (var i = 0; i < 4; i++)
+          GroupFaderConfig(
+            name: (names != null && i < names.length)
+                ? names[i]
+                : 'Group ${i + 1}',
+            channels: {},
+            fxReturns: {},
+          ),
       ];
 }
