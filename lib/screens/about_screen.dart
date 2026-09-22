@@ -11,6 +11,7 @@ const _privacyPolicyUrl = 'https://via-nubium.github.io/stagemon/privacy.html';
 // they translated (not its English or Spanish name) — see app_eu.arb.
 const _translators = <({String language, String name})>[
   (language: 'Euskara', name: 'Iker Viteri Valle'),
+  (language: 'Português', name: 'Miguel Carrasqueiro'),
 ];
 
 class AboutScreen extends StatefulWidget {
