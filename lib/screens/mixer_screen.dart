@@ -96,10 +96,8 @@ class _MixerScreenState extends State<MixerScreen> {
     // the once, here on a first run — reading the localizations after the
     // await, since initState has no context to read them from.
     final l = AppLocalizations.of(context)!;
-    final loaded = stored ??
-        MixerLayoutState.defaults(
-          groupNames: [for (var i = 1; i <= 4; i++) l.groupDefaultName(i)],
-        );
+    final loaded =
+        stored ?? MixerLayoutState.defaults(groupName: l.groupDefaultName);
     _applyLayout(loaded);
     if (loaded.bus != _ctrl.bus) _ctrl.changeBus(loaded.bus);
   }

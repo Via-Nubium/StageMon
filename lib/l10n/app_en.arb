@@ -396,6 +396,38 @@
   "busWillChangeNote": "The output bus will change.",
   "@busWillChangeNote": {},
 
+  "defaultLayoutName": "Default layout",
+  "@defaultLayoutName": {
+    "description": "Built-in entry pinned at the top of the Layouts list. Loading it resets the screen setup to what a fresh install has."
+  },
+
+  "defaultLayoutSummary": "All channels · console colors · empty groups",
+  "@defaultLayoutSummary": {
+    "description": "Subtitle under the Default layout entry, in the same ' · '-separated style as the saved layouts' summaries."
+  },
+
+  "savedLayoutsHeader": "Saved",
+  "@savedLayoutsHeader": {
+    "description": "Section header above the user's own saved layouts, below the Default layout entry."
+  },
+
+  "resetLayoutTitle": "Reset layout",
+  "@resetLayoutTitle": {},
+
+  "resetLayoutBody": "The screen setup goes back to how it was when the app was installed: all channels visible, console colors, and empty groups with their original names.",
+  "@resetLayoutBody": {},
+
+  "resetLayoutKeeps": "{bus}, your saved layouts and snapshots are kept.",
+  "@resetLayoutKeeps": {
+    "description": "{bus} is the current output bus as shown elsewhere in the app, e.g. 'Bus 3'.",
+    "placeholders": {
+      "bus": {"type": "String"}
+    }
+  },
+
+  "reset": "Reset",
+  "@reset": {},
+
   "faderVisibilityTitle": "Visible faders",
   "@faderVisibilityTitle": {},
 

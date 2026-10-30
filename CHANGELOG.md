@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Basque (Euskara) is now available as an app language, translated by Iker Viteri Valle.
 - Portuguese (Português) is now available as an app language, translated by Miguel Carrasqueiro.
 - The About screen now credits volunteer translators.
+- Layouts now has a "Default layout" entry at the top of the list that resets the screen setup to how a fresh install has it: all channels visible, console colors, and empty groups with their original names in the app's language. The output bus stays as it is, and your saved layouts and snapshots are not touched.
 
 ### Fixed
 - The four groups a new install starts with were named "Grupo 1"-"Grupo 4" in Spanish regardless of the app's language. They are now named in the app's language. Groups already on your device keep the names they have, and can be renamed from the group's setup screen.

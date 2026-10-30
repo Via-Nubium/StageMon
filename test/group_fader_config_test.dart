@@ -67,9 +67,7 @@ void main() {
   });
 
   test('the default groups take the localized names the caller passes', () {
-    final named = GroupFaderConfig.defaultConfigs(
-      names: ['Grupo 1', 'Grupo 2', 'Grupo 3', 'Grupo 4'],
-    );
+    final named = GroupFaderConfig.defaultConfigs(name: (n) => 'Grupo $n');
     expect(named.map((c) => c.name), ['Grupo 1', 'Grupo 2', 'Grupo 3', 'Grupo 4']);
   });
 

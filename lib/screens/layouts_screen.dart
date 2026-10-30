@@ -118,6 +118,53 @@ class _LayoutsScreenState extends State<LayoutsScreen> {
     if (confirmed == true && mounted) Navigator.pop(context, layout);
   }
 
+  // The built-in "Default layout" entry: the same defaults a fresh install
+  // starts from, with group names in the current language. Returned with
+  // bus: null so the caller keeps the current bus (see SavedLayout.bus) —
+  // defaults() carries bus 1, and switching a musician onto someone else's
+  // mix mid-rehearsal is the one thing a reset must not do.
+  Future<void> _resetLayout() async {
+    final l = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text(l.resetLayoutTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l.resetLayoutBody),
+            const SizedBox(height: 8),
+            Text(
+              l.resetLayoutKeeps(l.busTitleMono(widget.layout.bus)),
+              style: TextStyle(color: Theme.of(d).colorScheme.onSurface),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(d, false),
+            child: Text(l.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(d, true),
+            child: Text(l.reset),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    Navigator.pop(
+      context,
+      SavedLayout(
+        name: l.defaultLayoutName,
+        console: widget.consoleModel,
+        bus: null,
+        layout: MixerLayoutState.defaults(groupName: l.groupDefaultName),
+      ),
+    );
+  }
+
   // Written to the app's own temp dir (no storage permission needed) and
   // handed to Android's share sheet, so the receiving device can pick it up
   // however it likes (chat app, Drive, Bluetooth...). Extension is custom so
@@ -303,27 +350,66 @@ class _LayoutsScreenState extends State<LayoutsScreen> {
       ),
       body: !_loaded
           ? const SizedBox.shrink()
-          : _manager.layouts.isEmpty
-          ? Center(child: Text(l.noLayoutsSaved))
-          : ListView.separated(
-              itemCount: _manager.layouts.length,
-              separatorBuilder: (_, _) => const Divider(height: 1),
-              itemBuilder: (_, i) {
-                final layout = _manager.layouts[i];
-                return ListTile(
-                  title: Text(layout.name),
+          : ListView(
+              children: [
+                // Tinted so it reads as built in rather than one of the
+                // user's own, and no ⋮: it can't be renamed, deleted or
+                // shared.
+                ListTile(
+                  tileColor: Theme.of(context)
+                      .colorScheme
+                      .secondaryContainer
+                      .withValues(alpha: 0.35),
+                  leading: Icon(
+                    Icons.restart_alt,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  title: Text(l.defaultLayoutName),
                   subtitle: Text(
-                    _layoutSummary(l, layout),
+                    l.defaultLayoutSummary,
                     style: const TextStyle(fontSize: 12),
                   ),
-                  onTap: () => _loadLayout(layout),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.more_vert),
-                    tooltip: l.layoutActionsTooltip,
-                    onPressed: () => _showActionsMenu(i),
+                  onTap: _resetLayout,
+                ),
+                const Divider(height: 1),
+                // Uppercase and primary-colored so it doesn't read as one
+                // more layout: the rows below are bodyLarge, the ListTile
+                // default. Uppercased here rather than in the .arb, so
+                // translators write the word as it's normally written.
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+                  child: Text(
+                    l.savedLayoutsHeader.toUpperCase(),
+                    style: Theme.of(context).textTheme.titleSmall!.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                   ),
-                );
-              },
+                ),
+                if (_manager.layouts.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 36,
+                    ),
+                    child: Center(child: Text(l.noLayoutsSaved)),
+                  ),
+                for (var i = 0; i < _manager.layouts.length; i++) ...[
+                  if (i > 0) const Divider(height: 1),
+                  ListTile(
+                    title: Text(_manager.layouts[i].name),
+                    subtitle: Text(
+                      _layoutSummary(l, _manager.layouts[i]),
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    onTap: () => _loadLayout(_manager.layouts[i]),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.more_vert),
+                      tooltip: l.layoutActionsTooltip,
+                      onPressed: () => _showActionsMenu(i),
+                    ),
+                  ),
+                ],
+              ],
             ),
     );
   }

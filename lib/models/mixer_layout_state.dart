@@ -60,10 +60,10 @@ class MixerLayoutState {
        busColors = Map.of(busColors),
        groups = List.of(groups);
 
-  /// [groupNames] are the localized names the four default groups are
-  /// born with — see [GroupFaderConfig.defaultConfigs]. Omitted where
-  /// there is no context to localize against.
-  factory MixerLayoutState.defaults({List<String>? groupNames}) =>
+  /// [groupName] names the default groups in the current language — see
+  /// [GroupFaderConfig.defaultConfigs]. Omitted where there is no context to
+  /// localize against.
+  factory MixerLayoutState.defaults({String Function(int number)? groupName}) =>
       MixerLayoutState(
     bus: 1,
     // All 16 channels start visible — matches the field initializer a
@@ -77,7 +77,7 @@ class MixerLayoutState {
     busFaderVisible: true,
     busFaderPinned: false,
     busColors: {},
-    groups: GroupFaderConfig.defaultConfigs(names: groupNames),
+    groups: GroupFaderConfig.defaultConfigs(name: groupName),
     faderWidth: kDefaultFaderWidth,
   );
 

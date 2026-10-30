@@ -80,17 +80,19 @@ class GroupFaderConfig {
 
   /// The four groups a layout starts with.
   ///
-  /// [names] are the localized defaults ("Group 1"...) the caller resolved
-  /// from AppLocalizations — a group's name is stored, not resolved at paint
-  /// time, so it can only be localized where there's a context to read. The
-  /// English fallback covers the paths that have none: the placeholder layout
-  /// a screen holds before its stored one loads, and a corrupt `groups` field.
-  static List<GroupFaderConfig> defaultConfigs({List<String>? names}) => [
-        for (var i = 0; i < 4; i++)
+  /// [name] gives each group its localized default name from its 1-based
+  /// number — the caller passes `l.groupDefaultName`. A group's name is
+  /// stored, not resolved at paint time, so it can only be localized where
+  /// there's a context to read. The English fallback covers the paths that
+  /// have none: the placeholder layout a screen holds before its stored one
+  /// loads, and a corrupt `groups` field.
+  static List<GroupFaderConfig> defaultConfigs({
+    String Function(int number)? name,
+  }) =>
+      [
+        for (var n = 1; n <= 4; n++)
           GroupFaderConfig(
-            name: (names != null && i < names.length)
-                ? names[i]
-                : 'Group ${i + 1}',
+            name: name?.call(n) ?? 'Group $n',
             channels: {},
             fxReturns: {},
           ),
