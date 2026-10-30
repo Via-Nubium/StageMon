@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 - Basque (Euskara) is now available as an app language, translated by Iker Viteri Valle.
 - Portuguese (Português) is now available as an app language, translated by Miguel Carrasqueiro.
+- French (Français) is now available as an app language, translated by Jérôme Snnçn.
 - The About screen now credits volunteer translators.
 - Layouts now has a "Default layout" entry at the top of the list that resets the screen setup to how a fresh install has it: all channels visible, console colors, and empty groups with their original names in the app's language. The output bus stays as it is, and your saved layouts and snapshots are not touched.
 

@@ -36,6 +36,7 @@ void main() {
       Locale('es'),
       Locale('eu'),
       Locale('pt'),
+      Locale('fr'),
     ],
     theme: ThemeData(
       colorScheme: ColorScheme.fromSeed(
